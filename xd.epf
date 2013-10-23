@@ -1,0 +1,15 @@
+#Mon Oct 21 11:02:02 EDT 2013
+/instance/org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.7
+/instance/org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+/instance/org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+/instance/org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.source=1.7
+@org.eclipse.jdt.core=3.9.1.v20130905-0837
+/instance/org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
+/instance/org.eclipse.jdt.core/org.eclipse.jdt.core.compiler.compliance=1.7
+@org.eclipse.jdt.launching=3.7.0.v20130515-1451
+\!/=
+file_export_version=3.0
+/instance/org.eclipse.jdt.ui/org.eclipse.jdt.ui.text.custom_code_templates=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?><templates/>
+/instance/org.eclipse.jdt.launching/org.eclipse.jdt.launching.PREF_VM_XML=<?xml version\="1.0" encoding\="UTF-8" standalone\="no"?>\n<vmSettings defaultVM\="52,org.eclipse.jdt.internal.launching.macosx.MacOSXType24,com.oracle.java.7u25.jdk" defaultVMConnector\="">\n<vmType id\="org.eclipse.jdt.internal.launching.macosx.MacOSXType">\n<vm id\="com.oracle.java.7u25.jdk" name\="Java SE 7 [1.7.0_25]" path\="/Library/Java/JavaVirtualMachines/jdk1.7.0_25.jdk/Contents/Home"/>\n<vm id\="com.apple.javajdk16" name\="Java SE 6 [1.6.0_51-b11-457]" path\="/System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home"/>\n</vmType>\n</vmSettings>\n
+@org.eclipse.jdt.ui=3.9.1.v20130820-1427
+/instance/org.eclipse.jdt.ui/org.eclipse.jdt.ui.formatterprofiles.version=12
