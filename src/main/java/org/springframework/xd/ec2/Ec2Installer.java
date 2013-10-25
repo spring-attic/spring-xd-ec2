@@ -16,7 +16,11 @@
 
 package org.springframework.xd.ec2;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.xd.ec2.cloud.AWSDeployer;
+import org.springframework.xd.ec2.cloud.Deployer;
 
 /**
  * @author glenn renfro
@@ -26,8 +30,9 @@ public class Ec2Installer {
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args) throws Exception {
+	final static Logger logger = LoggerFactory.getLogger(Ec2Installer.class);
 
+	public static void main(String[] args) throws Exception {
 		ClassPathXmlApplicationContext context = null;
 		try {
 			context = new ClassPathXmlApplicationContext(
@@ -35,16 +40,14 @@ public class Ec2Installer {
 
 			context.refresh();
 			EC2Util util = context.getBean(EC2Util.class);
-
 			util.printBanner();
-
-			Ec2InstallerCommandLineParser parser = new Ec2InstallerCommandLineParser(
-					args);
+			Deployer deployer = context.getBean(AWSDeployer.class);
+			String result = deployer.deploy();
+			logger.info("Installation Complete");
 		} finally {
 			if (context != null) {
 				context.close();
 			}
 		}
 	}
-
 }

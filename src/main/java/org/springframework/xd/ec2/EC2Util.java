@@ -1,11 +1,25 @@
+/*
+ * Copyright 2013 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.springframework.xd.ec2;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Properties;
 
 import javax.annotation.Resource;
 
@@ -18,54 +32,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class EC2Util implements ApplicationContextAware {
 	@Resource
-	private ApplicationContext context;
 	@Value("${cluster-name}")
-	String clusterName;
+	private String clusterName;
 	@Value("${aws-access-key}")
-	String awsAccessKey;
+	private String awsAccessKey;
 	@Value("${aws-secret-key}")
-	String awsSecretKey;
-	@Value("${private-key-file}")
-	String privateKeyFile;
-	@Value("${multi-node}")
-	String multiNode;
-	@Value("${number-nodes}")
-	String numberNodes;
-	@Value("${machine-size}")
-	String machineSize;
-	@Value("${redis-port}")
-	String redisPort;
-	@Value("${rabbit-port}")
-	String rabbitPort;
-	@Value("${xd-dist-url}")
-	String xdDistUrl;
-	@Value("${ami}")
-	String ami;
-
-	public String getProperties(String propertyPath) throws IOException {
-		Properties props = null;
-		if (propertyPath == null) {
-			props = new Properties();
-			props.put("cluster-name", clusterName);
-			props.put("aws-access-key", awsAccessKey);
-			props.put("aws-secret-key", awsSecretKey);
-			props.put("private-key-file", privateKeyFile);
-			props.put("multi-node", multiNode);
-			props.put("machine-size", machineSize);
-			props.put("number-nodes", numberNodes);
-			props.put("redis-port", redisPort);
-			props.put("rabbit-port", rabbitPort);
-			System.out.println(props);
-			// propertyPath = context.getResource("xd-ec2.properties").getFile()
-			// .getAbsolutePath();
-		}
-		File f = new File(propertyPath);
-		if (!f.exists()) {
-			throw new IllegalArgumentException();
-		}
-		System.out.println(clusterName);
-		return propertyPath;
-	}
+	private String awsSecretKey;
+	private ApplicationContext context;
 
 	public void printBanner() {
 		BufferedReader stream = null;
