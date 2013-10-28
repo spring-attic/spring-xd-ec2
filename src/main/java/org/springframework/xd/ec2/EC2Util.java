@@ -24,7 +24,6 @@ import java.io.InputStreamReader;
 import javax.annotation.Resource;
 
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
@@ -32,12 +31,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class EC2Util implements ApplicationContextAware {
 	@Resource
-	@Value("${cluster-name}")
-	private String clusterName;
-	@Value("${aws-access-key}")
-	private String awsAccessKey;
-	@Value("${aws-secret-key}")
-	private String awsSecretKey;
 	private ApplicationContext context;
 
 	public void printBanner() {

@@ -21,6 +21,9 @@ import static org.jclouds.util.Predicates2.retry;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -71,6 +74,12 @@ public class AWSDeployer implements Deployer {
 	private String multiNode;
 	@Value("${number-nodes}")
 	private String numberNodes;
+	@Value("${description}")
+	private String description;
+	@Value("${user_name}")
+	private String userName;
+	@Value("${region}")
+	private String region;
 
 	private AWSEC2Client client;
 	private ComputeService computeService;
@@ -119,13 +128,15 @@ public class AWSDeployer implements Deployer {
 						configurer.getSingleNodeStartupScript(), 1));
 		try {
 			checkAdminServices(instance);
+
 			runCommands(configurer.deploySingleNodeApplication(),
 					instance.getId());
+			tagInstance(instance);
 			checkAdminInstance(instance);
 		} catch (TimeoutException te) {
 			te.printStackTrace();
 		}
-
+		instance = findInstanceById(client, instance.getId());
 		logger.info(String.format("Single Node Instance: %s has been created",
 				instance.getDnsName()));
 		return hostName;
@@ -166,6 +177,18 @@ public class AWSDeployer implements Deployer {
 		ExecResponse resp = computeService.runScriptOnNode(nodeId, script,
 				options);
 		return resp;
+	}
+
+	private void tagInstance(RunningInstance instance) {
+		ArrayList<String> list = new ArrayList<String>();
+		list.add(instance.getId());
+		Map<String, String> tags = new HashMap<String, String>();
+		tags.put("Name", clusterName);
+		tags.put("User Name", userName);
+		tags.put("Description", description);
+
+		client.getTagApiForRegion(region).get().applyToResources(tags, list);
+
 	}
 
 	private void checkAdminInstance(RunningInstance instance)
