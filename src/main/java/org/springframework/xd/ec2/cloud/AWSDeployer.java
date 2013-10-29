@@ -70,7 +70,7 @@ import com.google.inject.Module;
 @Component
 public class AWSDeployer implements Deployer {
 
-	final static Logger logger = LoggerFactory.getLogger(AWSDeployer.class);
+	final static Logger logger = LoggerFactory.getLogger(TestAWSDeployer.class);
 
 	@Resource
 	@Value("${cluster-name}")

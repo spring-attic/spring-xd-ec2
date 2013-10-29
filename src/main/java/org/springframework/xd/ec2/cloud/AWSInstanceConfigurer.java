@@ -20,7 +20,9 @@ import static org.jclouds.scriptbuilder.domain.Statements.exec;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 import org.jclouds.scriptbuilder.ScriptBuilder;
@@ -59,6 +61,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		for (Statement statement : statements) {
 			builder.addStatement(statement);
 		}
+		Map<String, String> environmentVariables = new HashMap<String, String>();
+		environmentVariables.put("XD_HOME", getInstalledDirectory());
+		builder.addEnvironmentVariableScope("XD_HOME", environmentVariables);
 		String script = builder.render(OsFamily.UNIX);
 		return script;
 	}
