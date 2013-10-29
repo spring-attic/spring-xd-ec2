@@ -8,6 +8,7 @@ Compiling
 * To create an zip distribution execute the following: gradle distZip
 	* Once the compile is complete the distribution zip will be located in:
 	 ${spring-xd-ec2}/build/distributions/spring-xd-ec2-1.0.zip
+
 Installing
 ----------
 * Unzip spring-xd-ec2-1.0.zip
