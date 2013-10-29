@@ -35,6 +35,7 @@ public class Ec2Installer {
 	 * @param args
 	 */
 	final static Logger logger = LoggerFactory.getLogger(Ec2Installer.class);
+	private final static String HIGHLIGHT = "************************************************************************";
 
 	public static void main(String[] args) throws Exception {
 		ClassPathXmlApplicationContext context = null;
@@ -47,7 +48,7 @@ public class Ec2Installer {
 			util.printBanner();
 			Deployer deployer = context.getBean(AWSDeployer.class);
 			List<XDInstanceType> result = deployer.deploy();
-			logger.info("************************************************************************");
+			logger.info(HIGHLIGHT);
 			for (XDInstanceType instance : result) {
 				if (instance.getType() == XDInstanceType.InstanceType.SINGLE_NODE) {
 					logger.info(String.format(
@@ -65,15 +66,17 @@ public class Ec2Installer {
 							instance.getDns()));
 				}
 			}
-			logger.info("************************************************************************");
+			logger.info(HIGHLIGHT);
 			logger.info("\n\nInstallation Complete");
 		} catch (TimeoutException te) {
 			logger.error("Installation FAILED");
 			te.printStackTrace();
 		} catch (IllegalArgumentException iae) {
+			logger.info(HIGHLIGHT);
 			logger.error("An IllegalArgumentException has been thrown with the following message: "
 					+ iae.getMessage());
-			logger.error("Make sure you updated the conf/xd-ec2.properties to include the aws-access-key and aws-secret-key");
+			logger.error("Make sure you updated the config/xd-ec2.properties to include the aws-access-key and aws-secret-key");
+			logger.info(HIGHLIGHT);
 		} finally {
 			if (context != null) {
 				context.close();

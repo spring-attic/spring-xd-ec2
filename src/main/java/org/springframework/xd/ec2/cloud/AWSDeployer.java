@@ -317,7 +317,6 @@ public class AWSDeployer implements Deployer {
 		properties.setProperty("jclouds.connection-timeout", "18000");
 
 		properties.setProperty(TIMEOUT_PORT_OPEN, scriptTimeout + "");
-		properties.setProperty(TIMEOUT_PORT_OPEN, scriptTimeout + "");
 		properties.setProperty(TIMEOUT_SCRIPT_COMPLETE, scriptTimeout + "");
 		return properties;
 	}
