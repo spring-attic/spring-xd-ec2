@@ -16,6 +16,8 @@
 
 package org.springframework.xd.ec2.cloud;
 
+import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_PORT_OPEN;
+import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_SCRIPT_COMPLETE;
 import static org.jclouds.scriptbuilder.domain.Statements.exec;
 import static org.jclouds.util.Predicates2.retry;
 
@@ -23,7 +25,9 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -49,12 +53,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.xd.cloud.Deployer;
+import org.springframework.xd.cloud.XDInstanceType;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.net.HostAndPort;
 import com.google.inject.Module;
+
+/**
+ * @author glenn renfro
+ * 
+ */
 
 @Component
 public class AWSDeployer implements Deployer {
@@ -95,23 +106,26 @@ public class AWSDeployer implements Deployer {
 		Iterable<Module> modules = ImmutableSet
 				.<Module> of(new SshjSshClientModule());
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
-				.credentials(awsAccessKey, awsSecretKey) // key I created above
-				.modules(modules).buildView(ComputeServiceContext.class);
+				.credentials(awsAccessKey, awsSecretKey)
+				// key I created above
+				.modules(modules).overrides(getTimeoutPolicy())
+				.buildView(ComputeServiceContext.class);
 		computeService = context.getComputeService();
+
 		client = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
 				.buildApi(AWSEC2Client.class);
 
 	}
 
-	public String deploy() {
-		String result = null;
+	public List<XDInstanceType> deploy() throws TimeoutException {
+		ArrayList<XDInstanceType> result = new ArrayList<XDInstanceType>();
 		String script = null;
 		if (multiNode.equalsIgnoreCase("false")) {
-			result = deploySingleNode(script);
+			result.add(deploySingleNode(script));
 		} else if (multiNode.equalsIgnoreCase("true")) {
-			result = deployAdminServer(script);
-			result += deployContainerServer(script);
+			result.add(deployAdminServer(script));
+			result.addAll(deployContainerServer(script));
 		} else {
 			throw new IllegalArgumentException(
 					"multi-node property must either be true or false");
@@ -120,42 +134,46 @@ public class AWSDeployer implements Deployer {
 		return result;
 	}
 
-	public String deploySingleNode(String script) {
-		String hostName = null;
+	public XDInstanceType deploySingleNode(String script)
+			throws TimeoutException {
 		logger.info("Deploying SingleNode");
 		RunningInstance instance = Iterables
 				.getOnlyElement(instanceManager.runInstance(client,
 						configurer.getSingleNodeStartupScript(), 1));
-		try {
-			checkAdminServices(instance);
-
-			runCommands(configurer.deploySingleNodeApplication(),
-					instance.getId());
-			tagInstance(instance);
-			checkAdminInstance(instance);
-		} catch (TimeoutException te) {
-			te.printStackTrace();
-		}
+		checkServerResources(instance);
+		logger.info("*******Setting up your single XD instance.*******");
+		runCommands(configurer.deploySingleNodeApplication(), instance.getId());
+		tagInstance(instance);
+		checkServerInstance(instance);
 		instance = findInstanceById(client, instance.getId());
-		logger.info(String.format("Single Node Instance: %s has been created",
-				instance.getDnsName()));
-		return hostName;
+
+		return new XDInstanceType(instance.getDnsName(),
+				instance.getIpAddress(),
+				XDInstanceType.InstanceType.SINGLE_NODE, "Success");
 	}
 
-	public String deployAdminServer(String script) {
-		String hostName = null;
+	public XDInstanceType deployAdminServer(String script) {
+		XDInstanceType result = null;
 		logger.info("Deploying AdminServer");
 
-		return hostName;
+		return result;
 	}
 
-	public String[] deployContainerServer(String script) {
-		String hostNames[] = null;
+	public List<XDInstanceType> deployContainerServer(String script) {
+		ArrayList<XDInstanceType> result = new ArrayList<XDInstanceType>();
 		logger.info("Deploying Container Servers");
 
-		return hostNames;
+		return result;
 	}
 
+	/**
+	 * Executes the XD setup commands on a specified node id.
+	 * 
+	 * @param script
+	 *            JCloud Builder script that initializes XD.
+	 * @param nodeId
+	 *            The node ID of the instance to execute the commands
+	 */
 	public void runCommands(String script, String nodeId) {
 
 		RunScriptOptions options = RunScriptOptions.Builder
@@ -167,6 +185,14 @@ public class AWSDeployer implements Deployer {
 		logger.debug(resp.getOutput());
 	}
 
+	/**
+	 * Run a single command on the XD instance.
+	 * 
+	 * @param command
+	 * @param nodeId
+	 * @return
+	 */
+	@Deprecated
 	public ExecResponse runCommand(String command, String nodeId) {
 		String script = new ScriptBuilder().addStatement(exec(command)).render(
 				OsFamily.UNIX);
@@ -191,30 +217,28 @@ public class AWSDeployer implements Deployer {
 
 	}
 
-	private void checkAdminInstance(RunningInstance instance)
+	private void checkServerInstance(RunningInstance instance)
 			throws TimeoutException {
 		instance = findInstanceById(client, instance.getId());
 		SocketOpen socketOpen = computeService.getContext().utils().injector()
 				.getInstance(SocketOpen.class);
 		Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 1,
 				TimeUnit.SECONDS);
-		logger.info(String.format(
-				"%d: %s awaiting XD admin server to start %n",
+		logger.info(String.format("%d: %s awaiting XD server to start %n",
 				System.currentTimeMillis(), instance.getIpAddress()));
 		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
 				9393)))
-			throw new TimeoutException(
-					"timeout waiting for admin server to start: "
-							+ instance.getIpAddress());
+			throw new TimeoutException("timeout waiting for server to start: "
+					+ instance.getIpAddress());
 
-		logger.info(String.format("%d: %s admin server started%n",
+		logger.info(String.format("%d: %s server started%n",
 				System.currentTimeMillis(), instance.getIpAddress()));
 
 	}
 
-	private RunningInstance checkAdminServices(RunningInstance instance)
+	private RunningInstance checkServerResources(RunningInstance instance)
 			throws TimeoutException {
-
+		logger.info("*******Verifying EC2 Instance and Required XD Resources.*******");
 		logger.info(String.format("%d: %s awaiting instance to run %n",
 				System.currentTimeMillis(), instance.getId()));
 		Predicate<RunningInstance> runningTester = retry(
@@ -246,8 +270,6 @@ public class AWSDeployer implements Deployer {
 			throw new TimeoutException("timeout waiting for http to start: "
 					+ instance.getIpAddress());
 
-		logger.info(String.format("%d: %s http service started%n",
-				System.currentTimeMillis(), instance.getIpAddress()));
 		logger.info(String.format("instance %s ready%n", instance.getId()));
 		logger.info(String.format("ip address: %s%n", instance.getIpAddress()));
 		logger.info(String.format("dns name: %s%n", instance.getDnsName()));
@@ -260,8 +282,6 @@ public class AWSDeployer implements Deployer {
 		Set<? extends Reservation<? extends RunningInstance>> reservations = client
 				.getInstanceServices().describeInstancesInRegion(null,
 						instanceId); // last parameter (ids) narrows the
-		// search
-
 		// since we refined by instanceId there should only be one instance
 		return Iterables.getOnlyElement(Iterables.getOnlyElement(reservations));
 	}
@@ -270,7 +290,6 @@ public class AWSDeployer implements Deployer {
 		String result = "";
 		BufferedReader br = null;
 		try {
-			System.out.println(privateKeyFile);
 			br = new BufferedReader(new FileReader(privateKeyFile));
 			while (br.ready()) {
 				result += br.readLine() + "\n";
@@ -286,8 +305,20 @@ public class AWSDeployer implements Deployer {
 				}
 			}
 		}
-		// System.out.println(result);
 		return result;
 	}
 
+	private Properties getTimeoutPolicy() {
+		Properties properties = new Properties();
+		long scriptTimeout = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
+		properties.setProperty("jclouds.ssh.max-retries", "100");
+		properties.setProperty("jclouds.max-retries", "1000");
+		properties.setProperty("jclouds.request-timeout", "18000");
+		properties.setProperty("jclouds.connection-timeout", "18000");
+
+		properties.setProperty(TIMEOUT_PORT_OPEN, scriptTimeout + "");
+		properties.setProperty(TIMEOUT_PORT_OPEN, scriptTimeout + "");
+		properties.setProperty(TIMEOUT_SCRIPT_COMPLETE, scriptTimeout + "");
+		return properties;
+	}
 }

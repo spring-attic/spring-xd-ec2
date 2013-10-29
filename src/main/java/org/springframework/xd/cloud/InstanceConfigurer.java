@@ -14,8 +14,18 @@
  * limitations under the License.
  */
 
-package org.springframework.xd.ec2.cloud;
+package org.springframework.xd.cloud;
+
+/**
+ * @author glenn renfro
+ * 
+ */
 
 public interface InstanceConfigurer {
+	/**
+	 * Create JClouds Builder script that initialies a single XD node instance.
+	 * 
+	 * @return
+	 */
 	public String getSingleNodeStartupScript();
 }

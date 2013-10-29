@@ -28,6 +28,12 @@ import org.jclouds.scriptbuilder.domain.OsFamily;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.xd.cloud.InstanceConfigurer;
+
+/**
+ * @author glenn renfro
+ * 
+ */
 
 @Component
 public class AWSInstanceConfigurer implements InstanceConfigurer {

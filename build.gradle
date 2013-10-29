@@ -18,7 +18,7 @@ task setupProject {
 
 task copyConfigs(type:Copy, dependsOn: ':setupProject') {
 from 'src/main/resources/xd-ec2.properties'
-into '$buildDir/config'
+into "$buildDir/config"
 }
 
 applicationDistribution.from(copyConfigs) {
@@ -40,7 +40,16 @@ dependencies {
 
 
 
-
+startScripts {
+    classpath = files('src/dist/config')+classpath
+    doLast {
+        def windowsScriptFile = file getWindowsScript()
+        def unixScriptFile    = file getUnixScript()
+        windowsScriptFile.text = windowsScriptFile.text.replace('%APP_HOME%\\lib\\config', '%APP_HOME%\\config')
+        unixScriptFile.text    = unixScriptFile.text.replace('$APP_HOME/lib/config', '$APP_HOME/config')
+    }
+  
+}
 
 
 test {

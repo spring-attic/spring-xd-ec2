@@ -6,3 +6,4 @@
 .springBeans
 .classpath
 /config
+/logs

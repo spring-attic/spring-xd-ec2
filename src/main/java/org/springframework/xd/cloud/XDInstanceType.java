@@ -14,15 +14,40 @@
  * limitations under the License.
  */
 
-package org.springframework.xd.ec2.cloud;
+package org.springframework.xd.cloud;
 
-public interface Deployer {
-	public String deploy();
+/**
+ * @author glenn renfro
+ * 
+ */
+public class XDInstanceType {
+	private final String dns;
+	private final String ip;
+	private final InstanceType type;
+	private final String status;
 
-	public String deploySingleNode(String script);
+	public XDInstanceType(String dns, String ip, InstanceType type,
+			String status) {
+		super();
+		this.dns = dns;
+		this.ip = ip;
+		this.type = type;
+		this.status = status;
+	}
 
-	public String deployAdminServer(String script);
+	public String getDns() {
+		return dns;
+	}
 
-	public String[] deployContainerServer(String script);
+	public String getIp() {
+		return ip;
+	}
 
+	public InstanceType getType() {
+		return type;
+	}
+
+	public enum InstanceType {
+		SINGLE_NODE, ADMIN, NODE;
+	}
 }

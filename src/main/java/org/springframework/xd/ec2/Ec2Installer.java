@@ -16,11 +16,15 @@
 
 package org.springframework.xd.ec2;
 
+import java.util.List;
+import java.util.concurrent.TimeoutException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.xd.cloud.Deployer;
+import org.springframework.xd.cloud.XDInstanceType;
 import org.springframework.xd.ec2.cloud.AWSDeployer;
-import org.springframework.xd.ec2.cloud.Deployer;
 
 /**
  * @author glenn renfro
@@ -42,8 +46,34 @@ public class Ec2Installer {
 			EC2Util util = context.getBean(EC2Util.class);
 			util.printBanner();
 			Deployer deployer = context.getBean(AWSDeployer.class);
-			String result = deployer.deploy();
-			logger.info("Installation Complete");
+			List<XDInstanceType> result = deployer.deploy();
+			logger.info("************************************************************************");
+			for (XDInstanceType instance : result) {
+				if (instance.getType() == XDInstanceType.InstanceType.SINGLE_NODE) {
+					logger.info(String.format(
+							"Single Node Instance: %s has been created",
+							instance.getDns()));
+				}
+				if (instance.getType() == XDInstanceType.InstanceType.ADMIN) {
+					logger.info(String.format(
+							"Admin Node Instance: %s has been created",
+							instance.getDns()));
+				}
+				if (instance.getType() == XDInstanceType.InstanceType.NODE) {
+					logger.info(String.format(
+							"Container Node Instance: %s has been created",
+							instance.getDns()));
+				}
+			}
+			logger.info("************************************************************************");
+			logger.info("\n\nInstallation Complete");
+		} catch (TimeoutException te) {
+			logger.error("Installation FAILED");
+			te.printStackTrace();
+		} catch (IllegalArgumentException iae) {
+			logger.error("An IllegalArgumentException has been thrown with the following message: "
+					+ iae.getMessage());
+			logger.error("Make sure you updated the conf/xd-ec2.properties to include the aws-access-key and aws-secret-key");
 		} finally {
 			if (context != null) {
 				context.close();

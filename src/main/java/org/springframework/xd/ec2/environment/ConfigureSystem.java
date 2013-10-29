@@ -23,6 +23,15 @@ import java.util.Properties;
 
 import org.springframework.core.env.SimpleCommandLinePropertySource;
 
+/**
+ * This class is used to configure container nodes. Configuration includes
+ * setting up the container to reference the XD Admin Server, Redis and rabbit
+ * instances. This class is copied to the container at which time the setup
+ * script will execute this class.
+ * 
+ * @author glenn renfro
+ * 
+ */
 public class ConfigureSystem {
 	public static String REDIS_PROPS_FILE = "redis.props.file";
 	public static String RABBIT_PROPS_FILE = "rabbit.props.file";

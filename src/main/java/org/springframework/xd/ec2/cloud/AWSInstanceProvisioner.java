@@ -25,6 +25,13 @@ import org.jclouds.ec2.domain.RunningInstance;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+/**
+ * Provisions all necessary AWS resources for XD.
+ * 
+ * @author glenn renfro
+ * 
+ */
+
 @Component
 public class AWSInstanceProvisioner {
 
@@ -45,6 +52,18 @@ public class AWSInstanceProvisioner {
 	@Value("${region}")
 	private String region;
 
+	/**
+	 * Creates an AWS Instance
+	 * 
+	 * @param client
+	 *            - AWS Client that executes the commands necessary to create
+	 *            the instance.
+	 * @param script
+	 *            - JClouds Builder script that bootstraps the instance.
+	 * @param numberOfInstances
+	 *            - How many instances you need.
+	 * @return A list of created instances.
+	 */
 	public Reservation<? extends RunningInstance> runInstance(EC2Client client,
 			String script, int numberOfInstances) {
 		Reservation<? extends RunningInstance> reservation = client
