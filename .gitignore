@@ -1,0 +1,11 @@
+/build
+/bin
+.gradle/
+/.settings
+.project
+.springBeans
+.classpath
+/config
+/logs
+.gradle/1.5/taskArtifacts/cache.properties.lock
+.gradle/1.5/taskArtifacts/fileHashes.bin
