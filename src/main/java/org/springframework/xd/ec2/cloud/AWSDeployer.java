@@ -22,10 +22,7 @@ import static org.jclouds.scriptbuilder.domain.Statements.exec;
 import static org.jclouds.util.Predicates2.retry;
 
 import java.io.BufferedReader;
-<<<<<<< HEAD
-=======
 import java.io.File;
->>>>>>> XD-976
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,27 +41,18 @@ import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.domain.ExecResponse;
 import org.jclouds.compute.options.RunScriptOptions;
-<<<<<<< HEAD
-=======
 import org.jclouds.domain.Credentials;
 import org.jclouds.domain.LoginCredentials;
->>>>>>> XD-976
 import org.jclouds.ec2.EC2Client;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.jclouds.ec2.predicates.InstanceStateRunning;
-<<<<<<< HEAD
-import org.jclouds.predicates.SocketOpen;
-import org.jclouds.scriptbuilder.ScriptBuilder;
-import org.jclouds.scriptbuilder.domain.OsFamily;
-=======
 import org.jclouds.http.handlers.BackoffLimitedRetryHandler;
 import org.jclouds.io.payloads.FilePayload;
 import org.jclouds.predicates.SocketOpen;
 import org.jclouds.scriptbuilder.ScriptBuilder;
 import org.jclouds.scriptbuilder.domain.OsFamily;
 import org.jclouds.sshj.SshjSshClient;
->>>>>>> XD-976
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,12 +76,8 @@ import com.google.inject.Module;
 @Component
 public class AWSDeployer implements Deployer {
 
-<<<<<<< HEAD
-	final static Logger logger = LoggerFactory.getLogger(TestAWSDeployer.class);
-=======
 	static final Logger logger = LoggerFactory.getLogger(AWSDeployer.class);
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
->>>>>>> XD-976
 
 	@Resource
 	@Value("${cluster-name}")
@@ -164,13 +148,6 @@ public class AWSDeployer implements Deployer {
 				.getOnlyElement(instanceManager.runInstance(client,
 						configurer.getSingleNodeStartupScript(), 1));
 		checkServerResources(instance);
-<<<<<<< HEAD
-		logger.info("*******Setting up your single XD instance.*******");
-		runCommands(configurer.deploySingleNodeApplication(), instance.getId());
-		tagInstance(instance);
-		checkServerInstance(instance);
-		instance = findInstanceById(client, instance.getId());
-=======
 		instance = findInstanceById(client, instance.getId());
 		logger.info("*******Setting up your single XD instance.*******");
 
@@ -178,7 +155,6 @@ public class AWSDeployer implements Deployer {
 		runCommands(configurer.deploySingleNodeApplication(instance.getDnsName()), instance.getId());
 		tagInstance(instance);
 		checkServerInstance(instance);
->>>>>>> XD-976
 
 		return new XDInstanceType(instance.getDnsName(),
 				instance.getIpAddress(),
@@ -340,8 +316,6 @@ public class AWSDeployer implements Deployer {
 		}
 		return result;
 	}
-<<<<<<< HEAD
-=======
 	
 	private File getLibraryJarLocation(){
 		File result = null;
@@ -393,7 +367,6 @@ public class AWSDeployer implements Deployer {
 		}
 		return result;
 	}
->>>>>>> XD-976
 
 	private Properties getTimeoutPolicy() {
 		Properties properties = new Properties();
