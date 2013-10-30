@@ -22,6 +22,10 @@ import static org.jclouds.scriptbuilder.domain.Statements.exec;
 import static org.jclouds.util.Predicates2.retry;
 
 import java.io.BufferedReader;
+<<<<<<< HEAD
+=======
+import java.io.File;
+>>>>>>> XD-976
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,13 +44,27 @@ import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
 import org.jclouds.compute.domain.ExecResponse;
 import org.jclouds.compute.options.RunScriptOptions;
+<<<<<<< HEAD
+=======
+import org.jclouds.domain.Credentials;
+import org.jclouds.domain.LoginCredentials;
+>>>>>>> XD-976
 import org.jclouds.ec2.EC2Client;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.jclouds.ec2.predicates.InstanceStateRunning;
+<<<<<<< HEAD
 import org.jclouds.predicates.SocketOpen;
 import org.jclouds.scriptbuilder.ScriptBuilder;
 import org.jclouds.scriptbuilder.domain.OsFamily;
+=======
+import org.jclouds.http.handlers.BackoffLimitedRetryHandler;
+import org.jclouds.io.payloads.FilePayload;
+import org.jclouds.predicates.SocketOpen;
+import org.jclouds.scriptbuilder.ScriptBuilder;
+import org.jclouds.scriptbuilder.domain.OsFamily;
+import org.jclouds.sshj.SshjSshClient;
+>>>>>>> XD-976
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +88,12 @@ import com.google.inject.Module;
 @Component
 public class AWSDeployer implements Deployer {
 
+<<<<<<< HEAD
 	final static Logger logger = LoggerFactory.getLogger(TestAWSDeployer.class);
+=======
+	static final Logger logger = LoggerFactory.getLogger(AWSDeployer.class);
+	private static final String UBUNTU_HOME = "/home/ubuntu/";
+>>>>>>> XD-976
 
 	@Resource
 	@Value("${cluster-name}")
@@ -141,11 +164,21 @@ public class AWSDeployer implements Deployer {
 				.getOnlyElement(instanceManager.runInstance(client,
 						configurer.getSingleNodeStartupScript(), 1));
 		checkServerResources(instance);
+<<<<<<< HEAD
 		logger.info("*******Setting up your single XD instance.*******");
 		runCommands(configurer.deploySingleNodeApplication(), instance.getId());
 		tagInstance(instance);
 		checkServerInstance(instance);
 		instance = findInstanceById(client, instance.getId());
+=======
+		instance = findInstanceById(client, instance.getId());
+		logger.info("*******Setting up your single XD instance.*******");
+
+		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
+		runCommands(configurer.deploySingleNodeApplication(instance.getDnsName()), instance.getId());
+		tagInstance(instance);
+		checkServerInstance(instance);
+>>>>>>> XD-976
 
 		return new XDInstanceType(instance.getDnsName(),
 				instance.getIpAddress(),
@@ -307,6 +340,60 @@ public class AWSDeployer implements Deployer {
 		}
 		return result;
 	}
+<<<<<<< HEAD
+=======
+	
+	private File getLibraryJarLocation(){
+		File result = null;
+		File buildFile = new File("build/libs/spring-xd-ec2-1.0.jar");
+		File deployFile = new File("lib/spring-xd-ec2-1.0.jar");
+		if(buildFile.exists()){
+			result = buildFile;
+		}else if(deployFile.exists()){
+			result = deployFile;
+		}
+		
+		return result;
+	}
+	private void sshCopy(File file, String host, String nodeId) {
+		try {
+			LoginCredentials credential = LoginCredentials
+					.fromCredentials(new Credentials("ubuntu", getPrivateKey()));
+			com.google.common.net.HostAndPort socket = com.google.common.net.HostAndPort
+					.fromParts(host, 22);
+			SshjSshClient client = new SshjSshClient(
+					new BackoffLimitedRetryHandler(), socket, credential, 5000);
+			FilePayload payload = new FilePayload(file);
+			client.put(
+					UBUNTU_HOME+"deploy.jar",
+					payload);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	private  String getPrivateKey() {
+		String result = "";
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader(
+					privateKeyFile));
+			while (br.ready()) {
+				result += br.readLine() + "\n";
+			}
+		} catch (Exception ex) {
+			ex.printStackTrace();
+		} finally {
+			if (br != null) {
+				try {
+					br.close();
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+		}
+		return result;
+	}
+>>>>>>> XD-976
 
 	private Properties getTimeoutPolicy() {
 		Properties properties = new Properties();

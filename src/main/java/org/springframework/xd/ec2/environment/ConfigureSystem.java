@@ -20,8 +20,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
+<<<<<<< HEAD
 
 import org.springframework.core.env.SimpleCommandLinePropertySource;
+=======
+import java.util.StringTokenizer;
+>>>>>>> XD-976
 
 /**
  * This class is used to configure container nodes. Configuration includes
@@ -42,6 +46,7 @@ public class ConfigureSystem {
 	public static String RABBIT_PORT = "rabbit.port";
 
 	public static void main(String[] args) {
+<<<<<<< HEAD
 		SimpleCommandLinePropertySource propertySource = new SimpleCommandLinePropertySource(
 				args);
 		File redisPropertyFile = new File(getPropFileForRedis(propertySource));
@@ -49,6 +54,16 @@ public class ConfigureSystem {
 
 		Properties redisProperties = getPropertiesForRedis(propertySource);
 		Properties rabbitProperties = getPropertiesForRabbit(propertySource);
+=======
+		System.out.println("Starting the Configuration process");
+		System.out.flush();
+		Properties props = getCommandLineProperties(args);
+		File redisPropertyFile = new File(getPropFileForRedis(props));
+		File rabbitPropertyFile = new File(getPropFileForRabbit(props));
+
+		Properties redisProperties = getPropertiesForRedis(props);
+		Properties rabbitProperties = getPropertiesForRabbit(props);
+>>>>>>> XD-976
 
 		try {
 			redisProperties.store(new FileOutputStream(redisPropertyFile),
@@ -59,22 +74,40 @@ public class ConfigureSystem {
 
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
+<<<<<<< HEAD
 		}
+=======
+			System.out.println("Failed to configure application ==>"+ioe.getMessage());
+		}
+		System.out.println("Completed the Configuration process");
+>>>>>>> XD-976
 
 	}
 
 	private static String getPropFileForRedis(
+<<<<<<< HEAD
 			SimpleCommandLinePropertySource propertySource) {
 		if (propertySource.containsProperty(REDIS_PROPS_FILE)) {
 			throw new IllegalArgumentException(
 					"Redis property file param not present.");
+=======
+			Properties propertySource) {
+		if (!propertySource.containsKey(REDIS_PROPS_FILE)) {
+			throw new IllegalArgumentException(
+					"Redis property file "+propertySource.get(REDIS_PROPS_FILE)+" param not present.");
+>>>>>>> XD-976
 		}
 		return propertySource.getProperty(REDIS_PROPS_FILE);
 	}
 
 	private static String getPropFileForRabbit(
+<<<<<<< HEAD
 			SimpleCommandLinePropertySource propertySource) {
 		if (propertySource.containsProperty(RABBIT_PROPS_FILE)) {
+=======
+			Properties propertySource) {
+		if (!propertySource.containsKey(RABBIT_PROPS_FILE)) {
+>>>>>>> XD-976
 			throw new IllegalArgumentException(
 					"Rabbit property file param not present.");
 		}
@@ -82,12 +115,21 @@ public class ConfigureSystem {
 	}
 
 	private static Properties getPropertiesForRedis(
+<<<<<<< HEAD
 			SimpleCommandLinePropertySource propertySource) {
 		Properties props = new Properties();
 		if (propertySource.containsProperty(REDIS_HOST)) {
 			throw new IllegalArgumentException("Redis Host Not Present.");
 		}
 		if (propertySource.containsProperty(REDIS_PORT)) {
+=======
+			Properties propertySource) {
+		Properties props = new Properties();
+		if (!propertySource.containsKey(REDIS_HOST)) {
+			throw new IllegalArgumentException("Redis Host Not Present.");
+		}
+		if (!propertySource.containsKey(REDIS_PORT)) {
+>>>>>>> XD-976
 			throw new IllegalArgumentException("Redis Port Not Present.");
 		}
 
@@ -97,12 +139,21 @@ public class ConfigureSystem {
 	}
 
 	private static Properties getPropertiesForRabbit(
+<<<<<<< HEAD
 			SimpleCommandLinePropertySource propertySource) {
 		Properties props = new Properties();
 		if (propertySource.containsProperty(RABBIT_HOST)) {
 			throw new IllegalArgumentException("Rabbit Host Not Present.");
 		}
 		if (propertySource.containsProperty(RABBIT_PORT)) {
+=======
+			Properties propertySource) {
+		Properties props = new Properties();
+		if (!propertySource.containsKey(RABBIT_HOST)) {
+			throw new IllegalArgumentException("Rabbit Host Not Present.");
+		}
+		if (!propertySource.containsKey(RABBIT_PORT)) {
+>>>>>>> XD-976
 			throw new IllegalArgumentException("Rabbit Port Not Present.");
 		}
 
@@ -110,5 +161,20 @@ public class ConfigureSystem {
 		props.setProperty(RABBIT_PORT, propertySource.getProperty(RABBIT_PORT));
 		return props;
 	}
+<<<<<<< HEAD
 
+=======
+	private static Properties getCommandLineProperties(String []args){
+		Properties props = new Properties();
+		for(String arg:args){
+			if(!arg.startsWith("--")||arg.indexOf('=')<0){
+				continue;
+			}
+			arg = arg.substring(2);
+			StringTokenizer tokenizer = new StringTokenizer(arg,"=");
+			props.put(tokenizer.nextToken(),tokenizer.nextToken());
+		}
+		return props;
+	}
+>>>>>>> XD-976
 }

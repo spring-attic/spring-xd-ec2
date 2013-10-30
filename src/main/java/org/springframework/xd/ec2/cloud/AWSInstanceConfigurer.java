@@ -31,6 +31,10 @@ import org.jclouds.scriptbuilder.domain.Statement;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.xd.cloud.InstanceConfigurer;
+<<<<<<< HEAD
+=======
+import org.springframework.xd.ec2.environment.ConfigureSystem;
+>>>>>>> XD-976
 
 /**
  * @author glenn renfro
@@ -52,8 +56,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return renderStatement(startXDResourceStatement());
 	}
 
+<<<<<<< HEAD
 	public String deploySingleNodeApplication() {
 		return renderStatement(deploySingleNodeXDStatement());
+=======
+	public String deploySingleNodeApplication(String hostName) {
+		return renderStatement(deploySingleNodeXDStatement(hostName));
+>>>>>>> XD-976
 	}
 
 	private String renderStatement(List<Statement> statements) {
@@ -68,12 +77,21 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return script;
 	}
 
+<<<<<<< HEAD
 	private List<Statement> deploySingleNodeXDStatement() {
+=======
+	private List<Statement> deploySingleNodeXDStatement(String hostName) {
+>>>>>>> XD-976
 		ArrayList<Statement> result = new ArrayList<Statement>();
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
+<<<<<<< HEAD
 		result.add(exec(getInstalledDirectory() + "xd-singlenode &"));
+=======
+		result.add(exec(constructConfigurationCommand(hostName)));
+		result.add(exec(getBinDirectory() + "xd-singlenode &"));
+>>>>>>> XD-976
 		return result;
 	}
 
@@ -98,9 +116,32 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		while (tokenizer.hasMoreElements()) {
 			tokens.add(tokenizer.nextToken());
 		}
+<<<<<<< HEAD
 		return String.format(UBUNTU_HOME + "spring-xd-%s/xd/bin/",
 				tokens.get(tokenCount - 2));
 
 	}
 
+=======
+		return String.format(UBUNTU_HOME + "spring-xd-%s",
+				tokens.get(tokenCount - 2));
+	}
+	private String getBinDirectory(){
+		return getInstalledDirectory()+"/xd/bin/";
+	}
+	private String getConfigDirectory() {
+		return getInstalledDirectory()+"/xd/config/";
+		}
+	private String constructConfigurationCommand(String hostName){
+		String configCommand = String.format("java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem --%s=%s --%s=%s --%s=%s --%s=%s --%s=%s --%s=%s > /home/ubuntu/config.txt 2> /home/ubuntu/configError.txt",
+		ConfigureSystem.RABBIT_PROPS_FILE, getConfigDirectory()+"rabbit.properties",
+		ConfigureSystem.REDIS_PROPS_FILE, getConfigDirectory()+"redis.properties",
+		ConfigureSystem.RABBIT_HOST, hostName,
+		ConfigureSystem.RABBIT_PORT, rabbitPort,
+		ConfigureSystem.REDIS_HOST, hostName,
+		ConfigureSystem.REDIS_PORT, redisPort
+		);
+		return configCommand;
+	}
+>>>>>>> XD-976
 }
