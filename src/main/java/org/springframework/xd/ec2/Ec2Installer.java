@@ -75,7 +75,7 @@ public class Ec2Installer {
 			logger.info(HIGHLIGHT);
 			logger.error("An IllegalArgumentException has been thrown with the following message: "
 					+ iae.getMessage());
-			logger.error("Make sure you updated the config/xd-ec2.properties to include the aws-access-key and aws-secret-key");
+			logger.error("Make sure you updated the config/xd-ec2.properties to include the aws-access-key, aws-secret-key and private-key-file");
 			logger.info(HIGHLIGHT);
 		} finally {
 			if (context != null) {

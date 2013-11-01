@@ -9,6 +9,7 @@ mainClassName = "org.springframework.xd.ec2.Ec2Installer"
 
 repositories {
     mavenCentral()
+    maven { url "http://repo.springsource.org/plugins-snapshot" }
 }
 
 task setupProject {
@@ -24,17 +25,28 @@ into "$buildDir/config"
 applicationDistribution.from(copyConfigs) {
     into "config"
 }
-
+ext {
+	springVersion = '4.0.0.BUILD-SNAPSHOT'
+	mockitoVersion = '1.8.4'
+	log4jBridgeVersion = '1.7.5'
+	commonsVersion = '3.2'
+	jcloudsVersion = '1.6.0'
+	logbackVersion = '1.0.13'
+	}
 dependencies {
-    compile group: 'commons-collections', name: 'commons-collections', version: '3.2'
-    compile 'commons-collections:commons-collections:3.2'
-    compile 'org.jclouds.provider:aws-ec2:1.6.0'
-    compile 'org.jclouds.driver:jclouds-sshj:1.6.0'
-    compile 'org.springframework:spring-core:3.2.4.RELEASE'
-    compile 'org.springframework:spring-context:3.2.4.RELEASE'
-	compile 'org.springframework:spring-web:3.2.4.RELEASE'
-	compile 'ch.qos.logback:logback-classic:1.0.13'
-
+    compile "org.slf4j:log4j-over-slf4j:$log4jBridgeVersion"
+    compile "commons-collections:commons-collections:$commonsVersion"
+    compile "org.jclouds.provider:aws-ec2:$jcloudsVersion"
+    compile "org.jclouds.driver:jclouds-sshj:$jcloudsVersion"
+    compile "org.springframework:spring-core:$springVersion"
+    compile "org.springframework:spring-context:$springVersion"
+	compile "org.springframework:spring-web:$springVersion"
+	compile "org.springframework:spring-test:$springVersion"
+	compile "ch.qos.logback:logback-classic:$logbackVersion"
+	
+	
+	testCompile "org.springframework:spring-test:$springVersion"
+	testCompile "org.mockito:mockito-all:$mockitoVersion"
     testCompile group: 'junit', name: 'junit', version: '4.+'
 }
 

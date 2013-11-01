@@ -18,12 +18,16 @@ package org.springframework.xd.ec2.cloud;
 
 import static org.jclouds.ec2.options.RunInstancesOptions.Builder.asType;
 
+import java.util.Set;
+
 import org.jclouds.ec2.EC2Client;
 import org.jclouds.ec2.domain.InstanceType;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import com.google.common.collect.Iterables;
 
 /**
  * Provisions all necessary AWS resources for XD.
@@ -76,7 +80,23 @@ public class AWSInstanceProvisioner {
 								.withUserData(script.getBytes()));
 		return reservation;
 	}
-
+/**
+ * Retrieve the instance information for the instance id based on the EC2Client
+ * @param client AWS Client that executes the commands necessary to create
+	 *            the instance.
+ * @param instanceId The id of the instance.
+ * @return Instance with that instance id.
+ */
+	public static RunningInstance findInstanceById(EC2Client client,
+			String instanceId) {
+		// search my account for the instance I just created
+		Set<? extends Reservation<? extends RunningInstance>> reservations = client
+				.getInstanceServices().describeInstancesInRegion(null,
+						instanceId); // last parameter (ids) narrows the
+		// since we refined by instanceId there should only be one instance
+		return Iterables.getOnlyElement(Iterables.getOnlyElement(reservations));
+	}
+	
 	private String getInstanceType() {
 		String type = null;
 		if (machineSize.equalsIgnoreCase(SMALL)) {
@@ -89,4 +109,5 @@ public class AWSInstanceProvisioner {
 
 		return type;
 	}
+	
 }
