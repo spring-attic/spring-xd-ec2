@@ -21,16 +21,21 @@ import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.xd.cloud.Deployer;
+import org.springframework.xd.cloud.Deployment;
+import org.springframework.xd.cloud.InstanceType;
 import org.springframework.xd.cloud.InvalidXDZipUrlException;
-import org.springframework.xd.cloud.XDInstanceType;
 import org.springframework.xd.ec2.cloud.AWSDeployer;
 
 /**
+ * The component that kicks off the installation process.
+ * 
  * @author glenn renfro
  * 
  */
+@Component
 public class Ec2Installer {
 	/**
 	 * @param args
@@ -38,33 +43,31 @@ public class Ec2Installer {
 	final static Logger logger = LoggerFactory.getLogger(Ec2Installer.class);
 	private final static String HIGHLIGHT = "************************************************************************";
 
-	public static void main(String[] args) throws Exception {
-		ClassPathXmlApplicationContext context = null;
-		try {
-			context = new ClassPathXmlApplicationContext(
-					"META-INF/xdinstaller-context.xml");
+	@Autowired
+	private Banner banner;
 
-			context.refresh();
-			EC2Util util = context.getBean(EC2Util.class);
-			util.printBanner();
-			Deployer deployer = context.getBean(AWSDeployer.class);
-			List<XDInstanceType> result = deployer.deploy();
+	private Deployer deployer;
+	public void install() throws Exception {
+		try {
+			deployer = new AWSDeployer();
+			banner.print();
+			List<Deployment> result = deployer.deploy();
 			logger.info(HIGHLIGHT);
-			for (XDInstanceType instance : result) {
-				if (instance.getType() == XDInstanceType.InstanceType.SINGLE_NODE) {
+			for (Deployment instance : result) {
+				if (instance.getType() == InstanceType.SINGLE_NODE) {
 					logger.info(String.format(
 							"Single Node Instance: %s has been created",
-							instance.getDns()));
+							instance.getAddress().getHostName()));
 				}
-				if (instance.getType() == XDInstanceType.InstanceType.ADMIN) {
+				if (instance.getType() == InstanceType.ADMIN) {
 					logger.info(String.format(
 							"Admin Node Instance: %s has been created",
-							instance.getDns()));
+							instance.getAddress().getHostName()));
 				}
-				if (instance.getType() == XDInstanceType.InstanceType.NODE) {
+				if (instance.getType() == InstanceType.NODE) {
 					logger.info(String.format(
 							"Container Node Instance: %s has been created",
-							instance.getDns()));
+							instance.getAddress().getHostName()));
 				}
 			}
 			logger.info(HIGHLIGHT);
@@ -75,17 +78,12 @@ public class Ec2Installer {
 		} catch (InvalidXDZipUrlException zipException) {
 			logger.error(zipException.getMessage());
 			zipException.printStackTrace();
-		} 
-		catch (IllegalArgumentException iae) {
+		} catch (IllegalArgumentException iae) {
 			logger.info(HIGHLIGHT);
-			logger.error("An IllegalArgumentException has been thrown with the following message: "
+			logger.error("An IllegalArgumentException has been thrown with the following message: \n"
 					+ iae.getMessage());
-			logger.error("Make sure you updated the config/xd-ec2.properties to include the aws-access-key, aws-secret-key and private-key-file");
+			logger.error("\nMake sure you updated the config/xd-ec2.properties");
 			logger.info(HIGHLIGHT);
-		} finally {
-			if (context != null) {
-				context.close();
-			}
 		}
 	}
 }

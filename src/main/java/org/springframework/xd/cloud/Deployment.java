@@ -16,38 +16,34 @@
 
 package org.springframework.xd.cloud;
 
+import java.net.InetAddress;
+
 /**
  * @author glenn renfro
  * 
  */
-public class XDInstanceType {
-	private final String dns;
-	private final String ip;
+public class Deployment {
+	private final InetAddress address;
 	private final InstanceType type;
-	private final String status;
+	private final DeploymentStatus status;
 
-	public XDInstanceType(String dns, String ip, InstanceType type,
-			String status) {
+	public Deployment(InetAddress address, InstanceType type,
+			DeploymentStatus status) {
 		super();
-		this.dns = dns;
-		this.ip = ip;
+		this.address = address;
 		this.type = type;
 		this.status = status;
 	}
 
-	public String getDns() {
-		return dns;
-	}
-
-	public String getIp() {
-		return ip;
+	public InetAddress getAddress() {
+		return address;
 	}
 
 	public InstanceType getType() {
 		return type;
 	}
 
-	public enum InstanceType {
-		SINGLE_NODE, ADMIN, NODE;
+	public DeploymentStatus getStatus() {
+		return status;
 	}
 }

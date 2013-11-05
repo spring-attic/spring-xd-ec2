@@ -18,14 +18,15 @@ package org.springframework.xd.ec2.cloud;
 
 import static org.jclouds.ec2.options.RunInstancesOptions.Builder.asType;
 
+import java.util.Properties;
 import java.util.Set;
 
 import org.jclouds.ec2.EC2Client;
 import org.jclouds.ec2.domain.InstanceType;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.xd.cloud.InstanceProvisioner;
+import org.springframework.xd.cloud.InstanceSize;
 
 import com.google.common.collect.Iterables;
 
@@ -36,25 +37,24 @@ import com.google.common.collect.Iterables;
  * 
  */
 
-@Component
-public class AWSInstanceProvisioner {
+public class AWSInstanceProvisioner implements InstanceProvisioner{
 
-	public static final String SMALL = "small";
-	public static final String MEDIUM = "medium";
-	public static final String LARGE = "large";
-
-	@Value("${ami}")
 	private String ami;
-	@Value("${machine-size}")
 	private String machineSize;
-	@Value("${private-key-file}")
-	private String privateKeyFile;
-	@Value("${security-group}")
 	private String securityGroup;
-	@Value("${private-key-name}")
 	private String privateKeyName;
-	@Value("${region}")
 	private String region;
+
+	private EC2Client client;
+
+	public AWSInstanceProvisioner(EC2Client client, Properties properties) {
+		this.client = client;
+		this.ami = properties.getProperty("ami");
+		this.machineSize = properties.getProperty("machine-size");
+		this.securityGroup = properties.getProperty("security-group");
+		this.privateKeyName = properties.getProperty("private-key-name");
+		this.region = properties.getProperty("region");
+	}
 
 	/**
 	 * Creates an AWS Instance
@@ -68,8 +68,8 @@ public class AWSInstanceProvisioner {
 	 *            - How many instances you need.
 	 * @return A list of created instances.
 	 */
-	public Reservation<? extends RunningInstance> runInstance(EC2Client client,
-			String script, int numberOfInstances) {
+	public Reservation<? extends RunningInstance> runInstance(String script,
+			int numberOfInstances) {
 		Reservation<? extends RunningInstance> reservation = client
 				.getInstanceServices().runInstancesInRegion(region, null,
 						ami, // XD Basic Image.
@@ -80,13 +80,18 @@ public class AWSInstanceProvisioner {
 								.withUserData(script.getBytes()));
 		return reservation;
 	}
-/**
- * Retrieve the instance information for the instance id based on the EC2Client
- * @param client AWS Client that executes the commands necessary to create
-	 *            the instance.
- * @param instanceId The id of the instance.
- * @return Instance with that instance id.
- */
+
+	/**
+	 * Retrieve the instance information for the instance id based on the
+	 * EC2Client
+	 * 
+	 * @param client
+	 *            AWS Client that executes the commands necessary to create the
+	 *            instance.
+	 * @param instanceId
+	 *            The id of the instance.
+	 * @return Instance with that instance id.
+	 */
 	public static RunningInstance findInstanceById(EC2Client client,
 			String instanceId) {
 		// search my account for the instance I just created
@@ -96,18 +101,18 @@ public class AWSInstanceProvisioner {
 		// since we refined by instanceId there should only be one instance
 		return Iterables.getOnlyElement(Iterables.getOnlyElement(reservations));
 	}
-	
-	private String getInstanceType() {
+
+		private String getInstanceType() {
 		String type = null;
-		if (machineSize.equalsIgnoreCase(SMALL)) {
+		if (machineSize.equalsIgnoreCase(InstanceSize.SMALL.name())) {
 			type = InstanceType.M1_SMALL;
-		} else if (machineSize.equalsIgnoreCase(MEDIUM)) {
+		} else if (machineSize.equalsIgnoreCase(InstanceSize.MEDIUM.name())) {
 			type = InstanceType.M1_MEDIUM;
-		} else if (machineSize.equalsIgnoreCase(LARGE)) {
+		} else if (machineSize.equalsIgnoreCase(InstanceSize.LARGE.name())) {
 			type = InstanceType.M1_LARGE;
 		}
 
 		return type;
 	}
-	
+
 }

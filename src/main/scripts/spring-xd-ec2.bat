@@ -72,7 +72,7 @@ set CMD_LINE_ARGS=%$
 set CLASSPATH=%APP_HOME%\config;%APP_HOME%\lib\spring-xd-ec2-1.0.jar;%APP_HOME%\lib\commons-collections-3.2.jar;%APP_HOME%\lib\aws-ec2-1.6.0.jar;%APP_HOME%\lib\jclouds-sshj-1.6.0.jar;%APP_HOME%\lib\spring-core-3.2.4.RELEASE.jar;%APP_HOME%\lib\spring-context-3.2.4.RELEASE.jar;%APP_HOME%\lib\spring-web-3.2.4.RELEASE.jar;%APP_HOME%\lib\logback-classic-1.0.13.jar;%APP_HOME%\lib\jsr311-api-1.1.1.jar;%APP_HOME%\lib\aopalliance-1.0.jar;%APP_HOME%\lib\javax.inject-1.jar;%APP_HOME%\lib\asm-3.1.jar;%APP_HOME%\lib\cglib-2.2.1-v20090111.jar;%APP_HOME%\lib\guice-3.0.jar;%APP_HOME%\lib\guice-assistedinject-3.0.jar;%APP_HOME%\lib\rocoto-6.2.jar;%APP_HOME%\lib\jsr250-api-1.0.jar;%APP_HOME%\lib\gson-2.2.2.jar;%APP_HOME%\lib\guava-14.0.1.jar;%APP_HOME%\lib\jclouds-core-1.6.0.jar;%APP_HOME%\lib\jclouds-scriptbuilder-1.6.0.jar;%APP_HOME%\lib\jclouds-compute-1.6.0.jar;%APP_HOME%\lib\sts-1.6.0.jar;%APP_HOME%\lib\ec2-1.6.0.jar;%APP_HOME%\lib\slf4j-api-1.7.5.jar;%APP_HOME%\lib\jclouds-slf4j-1.6.0.jar;%APP_HOME%\lib\bcprov-jdk16-1.46.jar;%APP_HOME%\lib\jclouds-bouncycastle-1.6.0.jar;%APP_HOME%\lib\sshj-0.8.1.jar;%APP_HOME%\lib\commons-logging-1.1.1.jar;%APP_HOME%\lib\spring-beans-3.2.4.RELEASE.jar;%APP_HOME%\lib\spring-aop-3.2.4.RELEASE.jar;%APP_HOME%\lib\spring-expression-3.2.4.RELEASE.jar;%APP_HOME%\lib\logback-core-1.0.13.jar
 
 @rem Execute spring-xd-ec2
-"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %SPRING_XD_EC_OPTS%  -classpath "%CLASSPATH%" org.springframework.xd.ec2.Ec2Installer %CMD_LINE_ARGS%
+"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %SPRING_XD_EC_OPTS%  -classpath "%CLASSPATH%" org.springframework.xd.ec2.Main %CMD_LINE_ARGS%
 
 :end
 @rem End local scope for the variables with windows NT shell

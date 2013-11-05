@@ -23,10 +23,14 @@ import static org.jclouds.scriptbuilder.domain.Statements.exec;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -48,11 +52,16 @@ import org.jclouds.sshj.SshjSshClient;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PropertiesLoaderUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.xd.cloud.Deployer;
-import org.springframework.xd.cloud.XDInstanceType;
+import org.springframework.xd.cloud.Deployment;
+import org.springframework.xd.cloud.DeploymentStatus;
+import org.springframework.xd.cloud.InstanceSize;
+import org.springframework.xd.cloud.InstanceType;
+import org.springframework.xd.cloud.InvalidXDZipUrlException;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -63,47 +72,38 @@ import com.google.inject.Module;
  * 
  */
 
-@Component
 public class AWSDeployer implements Deployer {
 
 	static final Logger logger = LoggerFactory.getLogger(AWSDeployer.class);
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
 
-	@Value("${cluster-name}")
 	private String clusterName;
-	@Value("${aws-access-key}")
 	private String awsAccessKey;
-	@Value("${aws-secret-key}")
 	private String awsSecretKey;
-	@Value("${private-key-file}")
 	private String privateKeyFile;
-	@Value("${multi-node}")
 	private String multiNode;
-	@Value("${number-nodes}")
-	private String numberNodes;
-	@Value("${description}")
 	private String description;
-	@Value("${user_name}")
 	private String userName;
-	@Value("${region}")
 	private String region;
-	@Value("${xd-zip-cache-url")
-	private String xdZipCacheUrl;
+
+	private static final String[] requiredEntries = { "cluster-name",
+			"aws-access-key", "aws-secret-key", "private-key-file",
+			"user_name", "region", "machine-size", "security-group",
+			"private-key-name", "ami" };
 
 	private AWSEC2Client client;
 	private ComputeService computeService;
-	AWSInstanceChecker awsInstanceChecker;
+	private AWSInstanceChecker awsInstanceChecker;
 
-	@Autowired
-	AWSInstanceConfigurer configurer;
-	@Autowired
-	AWSInstanceProvisioner instanceProvisioner;
+	private AWSInstanceConfigurer configurer;
 
-	@Autowired
-	public AWSDeployer(@Value("${aws-access-key}") final String awsAccessKey,
-			@Value("${aws-secret-key}") String awsSecretKey) {
+	private AWSInstanceProvisioner instanceProvisioner;
+
+	public AWSDeployer() {
 		Iterable<Module> modules = ImmutableSet
 				.<Module> of(new SshjSshClientModule());
+
+		Properties properties = getProperties();
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
 				// key I created above
@@ -114,13 +114,17 @@ public class AWSDeployer implements Deployer {
 		client = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
 				.buildApi(AWSEC2Client.class);
-		awsInstanceChecker = new AWSInstanceChecker();
+		awsInstanceChecker = new AWSInstanceChecker(properties, client,
+				computeService);
+		instanceProvisioner = new AWSInstanceProvisioner(client, properties);
+		configurer = new AWSInstanceConfigurer(properties);
+		validateConfiguration(properties);
+
 	}
 
-	public List<XDInstanceType> deploy() throws TimeoutException {
-		configurer.validateConfiguration();
+	public List<Deployment> deploy() throws TimeoutException {
 
-		ArrayList<XDInstanceType> result = new ArrayList<XDInstanceType>();
+		ArrayList<Deployment> result = new ArrayList<Deployment>();
 		String script = null;
 		if (getMultiNode().equalsIgnoreCase("false")) {
 			result.add(deploySingleNode(script));
@@ -135,47 +139,47 @@ public class AWSDeployer implements Deployer {
 		return result;
 	}
 
-	public XDInstanceType deploySingleNode(String script)
-			throws TimeoutException {
+	public Deployment deploySingleNode(String script) throws TimeoutException {
 		logger.info("Deploying SingleNode");
-		RunningInstance instance = Iterables
-				.getOnlyElement(instanceProvisioner.runInstance(client,
-						configurer.getSingleNodeStartupScript(), 1));
-		awsInstanceChecker.checkServerResources(instance, client,
-				computeService);
+		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
+				.runInstance(configurer.createStartXDResourcesScript(), 1));
+		awsInstanceChecker.checkServerResources(instance);
 		logger.info("*******Setting up your single XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
 		tagInitialization(instance);
-		try{
+		try {
 			Thread.sleep(5000);
-		}catch(Exception e){
-			
+		} catch (Exception e) {
+
 		}
 
 		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(),
 				instance.getId());
-		runCommands(
-				configurer.deploySingleNodeApplication(instance.getDnsName()),
+		runCommands(configurer.createSingleNodeScript(instance.getDnsName()),
 				instance.getId());
 		tagInstance(instance);
-		awsInstanceChecker.checkServerInstance(instance, client,
-				computeService, 9393);
-
-		return new XDInstanceType(instance.getDnsName(),
-				instance.getIpAddress(),
-				XDInstanceType.InstanceType.SINGLE_NODE, "Success");
+		awsInstanceChecker.checkServerInstance(instance, 9393);
+		Deployment result = null;
+		try {
+			InetAddress address = InetAddress.getByName(instance.getDnsName());
+			result = new Deployment(address, InstanceType.SINGLE_NODE,
+					DeploymentStatus.SUCCESS);
+		} catch (Exception ex) {
+			logger.error(ex.getMessage());
+		}
+		return result;
 	}
 
-	public XDInstanceType deployAdminServer(String script) {
-		XDInstanceType result = null;
+	public Deployment deployAdminServer(String script) {
+		Deployment result = null;
 		logger.info("Deploying AdminServer");
 
 		return result;
 	}
 
-	public List<XDInstanceType> deployContainerServer(String script) {
-		ArrayList<XDInstanceType> result = new ArrayList<XDInstanceType>();
+	public List<Deployment> deployContainerServer(String script) {
+		ArrayList<Deployment> result = new ArrayList<Deployment>();
 		logger.info("Deploying Container Servers");
 
 		return result;
@@ -199,7 +203,7 @@ public class AWSDeployer implements Deployer {
 				options);
 		logger.debug(resp.getOutput());
 		logger.debug(resp.getError());
-		logger.debug("ExitStatus is "+resp.getExitStatus());
+		logger.debug("ExitStatus is " + resp.getExitStatus());
 	}
 
 	/**
@@ -222,27 +226,27 @@ public class AWSDeployer implements Deployer {
 		return resp;
 	}
 
-	private void tagInitialization(RunningInstance instance){
+	private void tagInitialization(RunningInstance instance) {
 		Map<String, String> tags = new HashMap<String, String>();
-		tags.put("Name", "Initializing Instance for "+userName);
-		addTags(instance,tags);
-		
+		tags.put("Name", "Initializing Instance for " + userName);
+		addTags(instance, tags);
+
 	}
+
 	private void tagInstance(RunningInstance instance) {
 		Map<String, String> tags = new HashMap<String, String>();
 		tags.put("Name", clusterName);
 		tags.put("User Name", userName);
 		tags.put("Description", description);
 
-		addTags(instance,tags);
+		addTags(instance, tags);
 	}
 
-	private void addTags(RunningInstance instance, Map<String,String>tags) {
+	private void addTags(RunningInstance instance, Map<String, String> tags) {
 		ArrayList<String> list = new ArrayList<String>();
 		list.add(instance.getId());
 		client.getTagApiForRegion(region).get().applyToResources(tags, list);
 	}
-
 
 	private String getKeyPair() {
 		String result = "";
@@ -327,6 +331,73 @@ public class AWSDeployer implements Deployer {
 		properties.setProperty(TIMEOUT_PORT_OPEN, scriptTimeout + "");
 		properties.setProperty(TIMEOUT_SCRIPT_COMPLETE, scriptTimeout + "");
 		return properties;
+	}
+
+	private Properties getProperties() {
+		Resource resource = new ClassPathResource("xd-ec2.properties");
+		Properties props = null;
+		try {
+			props = PropertiesLoaderUtils.loadProperties(resource);
+		} catch (IOException ioe) {
+			logger.error("Failed to open xd-ec2.properties file because: "
+					+ ioe.getMessage());
+		}
+		clusterName = props.getProperty("cluster-name");
+		awsAccessKey = props.getProperty("aws-access-key");
+		awsSecretKey = props.getProperty("aws-secret-key");
+		privateKeyFile = props.getProperty("private-key-file");
+		multiNode = props.getProperty("multi-node");
+		description = props.getProperty("description");
+		userName = props.getProperty("user_name");
+		region = props.getProperty("region");
+		return props;
+	}
+
+	/**
+	 * Verifies that all properties that the application needs are setup
+	 * properly.
+	 */
+	private Properties validateConfiguration(Properties props) {
+		ArrayList<String> errorList = new ArrayList<String>();
+		String value;
+		for (int i = 0; i < requiredEntries.length; i++) {
+			value = props.getProperty(requiredEntries[i]);
+			if (value == null || value.length() == 0) {
+				errorList.add(requiredEntries[i]);
+			}
+		}
+		if (errorList.size() > 0) {
+			String errorMessage = "The following entries are not configured in your xd-ec2.properties:\n";
+			errorMessage += errorList.get(0);
+			for (int i = 1; i < errorList.size(); i++) {
+				errorMessage += ",\n" + errorList.get(i);
+			}
+			throw new IllegalArgumentException(errorMessage);
+		}
+		if(!verifyMachineSize(props.getProperty("machine-size"))){
+			throw new IllegalArgumentException("Invalid machine size specified.  Valid values are small, medium, large");
+		}
+		try {
+			configurer.checkURL(props.getProperty("xd-dist-url"));
+		} catch (HttpClientErrorException httpException) {
+			throw new InvalidXDZipUrlException(
+					"Unable to download the XD Distribution you specified because, \" "
+							+ httpException.getMessage() + "\"");
+		}
+
+		return props;
+	}
+
+	private boolean verifyMachineSize(String machineSize) {
+		boolean verified = false;
+		if (machineSize.equalsIgnoreCase(InstanceSize.SMALL.name())) {
+			verified = true;
+		} else if (machineSize.equalsIgnoreCase(InstanceSize.MEDIUM.name())) {
+			verified = true;
+		} else if (machineSize.equalsIgnoreCase(InstanceSize.LARGE.name())) {
+			verified = true;
+		}
+		return verified;
 	}
 
 	public String getMultiNode() {

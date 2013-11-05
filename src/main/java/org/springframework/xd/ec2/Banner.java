@@ -29,11 +29,11 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 
 @Component
-public class EC2Util implements ApplicationContextAware {
+public class Banner implements ApplicationContextAware {
 	@Resource
 	private ApplicationContext context;
 
-	public void printBanner() {
+	public void print() {
 		BufferedReader stream = null;
 		try {
 			InputStream inputStream = context.getResource("banner.txt")

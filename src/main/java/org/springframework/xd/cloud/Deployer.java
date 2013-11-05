@@ -34,7 +34,7 @@ public interface Deployer {
 	 *         status.
 	 * @throws TimeoutException
 	 */
-	public List<XDInstanceType> deploy() throws TimeoutException;
+	public List<Deployment> deploy() throws TimeoutException;
 
 	/**
 	 * Deploys a single node instance of XD.
@@ -45,7 +45,7 @@ public interface Deployer {
 	 * @return The instance information for a successfully created XD-Node
 	 * @throws TimeoutException
 	 */
-	public XDInstanceType deploySingleNode(String script)
+	public Deployment deploySingleNode(String script)
 			throws TimeoutException;
 
 	/**
@@ -57,7 +57,7 @@ public interface Deployer {
 	 * @return The instance information for a successfully created Admin Server
 	 * @throws TimeoutException
 	 */
-	public XDInstanceType deployAdminServer(String script)
+	public Deployment deployAdminServer(String script)
 			throws TimeoutException;
 
 	/**
@@ -70,6 +70,6 @@ public interface Deployer {
 	 *         not.
 	 * @throws TimeoutException
 	 */
-	public List<XDInstanceType> deployContainerServer(String script);
+	public List<Deployment> deployContainerServer(String script);
 
 }

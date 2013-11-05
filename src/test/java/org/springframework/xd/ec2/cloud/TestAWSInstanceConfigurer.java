@@ -52,7 +52,7 @@ public class TestAWSInstanceConfigurer {
 	 */
 	@Test
 	public void testGetSingleNodeStartupScript() {
-		String result = configurer.getSingleNodeStartupScript();
+		String result = configurer.createStartXDResourcesScript();
 		assertTrue("Was not able to find where XD_HOME is set",
 				result.indexOf(XD_HOME_VALUE) > -1);
 		assertTrue("Was not able to find where Rabbit startup",
@@ -69,7 +69,7 @@ public class TestAWSInstanceConfigurer {
 	@Test
 	public void testDeploySingleNodeApplication() {
 		System.out.println(xdDistUrl);
-		String result = configurer.deploySingleNodeApplication("MYHOST");
+		String result = configurer.createSingleNodeScript("MYHOST");
 		assertTrue("Was not able to find wget command ",result.indexOf(WGET_COMMAND)>-1);
 		assertTrue("XD was not unzipped to the correct location ",result.indexOf(UNZIP_COMMAND)>-1);
 

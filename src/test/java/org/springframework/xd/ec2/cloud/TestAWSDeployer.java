@@ -1,6 +1,5 @@
 package org.springframework.xd.ec2.cloud;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -25,7 +24,7 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.xd.cloud.XDInstanceType;
+import org.springframework.xd.cloud.Deployment;
 
 import com.google.common.base.Predicate;
 
@@ -84,11 +83,11 @@ public class TestAWSDeployer {
 		
 		when(runningTester.apply((RunningInstance)anyObject())).thenReturn(true);
 		
-		when(instanceProvisioner.runInstance(client, configurer.getSingleNodeStartupScript(), 1)).thenReturn(Reservation.class.cast(reservation));
+		when(instanceProvisioner.runInstance( configurer.createStartXDResourcesScript(), 1)).thenReturn(Reservation.class.cast(reservation));
 		when(client.getInstanceServices()).thenReturn(awsInstanceClient);
 		when(awsInstanceClient.describeInstancesInRegion(anyString(), anyString())).thenReturn(set);
 		
-		when(checker.checkServerResources(any(RunningInstance.class), any(AWSEC2Client.class), any(ComputeService.class))).thenReturn(runningInstance);
+//		when(checker.checkServerResources(any(RunningInstance.class), any(AWSEC2Client.class), any(ComputeService.class))).thenReturn(runningInstance);
 
 		deployer.setClient(client);
 		deployer.setComputeService(computeService);
@@ -96,7 +95,7 @@ public class TestAWSDeployer {
 		deployer.setAwsInstanceChecker(checker);
 		
 
-		List<XDInstanceType> result = deployer.deploy();
+		List<Deployment> result = deployer.deploy();
 		
 		assertEquals(1, result.size());
 	}
@@ -105,7 +104,7 @@ public class TestAWSDeployer {
 	@Test
 	public void testDeployMultiNode() throws TimeoutException{
 		deployer.setMultiNode("true");
-		List<XDInstanceType> result = deployer.deploy();
+		List<Deployment> result = deployer.deploy();
 		assertEquals(1, result.size());
 	}
 

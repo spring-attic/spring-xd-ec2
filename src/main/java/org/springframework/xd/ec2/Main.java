@@ -13,19 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.springframework.xd.ec2;
 
-package org.springframework.xd.cloud;
+import org.springframework.context.support.AbstractApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
  * @author glenn renfro
  * 
  */
+public class Main {
 
-public interface InstanceConfigurer {
-	/**
-	 * Create JClouds Builder script that initialies a single XD node instance.
-	 * 
-	 * @return
-	 */
-	public String createStartXDResourcesScript();
+	public static void main(String[] args) throws Exception{
+
+		@SuppressWarnings("resource")
+		AbstractApplicationContext ctx = new ClassPathXmlApplicationContext(
+				"META-INF/xdinstaller-context.xml");
+		// shutdown the context along with the VM
+		ctx.registerShutdownHook();
+		ctx.refresh();
+		// Begin Installation
+		Ec2Installer installer = ctx.getBean(Ec2Installer.class);
+		installer.install();
+	}
+
 }
