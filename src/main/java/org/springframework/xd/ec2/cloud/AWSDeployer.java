@@ -69,7 +69,6 @@ public class AWSDeployer implements Deployer {
 	static final Logger logger = LoggerFactory.getLogger(AWSDeployer.class);
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
 
-
 	@Value("${cluster-name}")
 	private String clusterName;
 	@Value("${aws-access-key}")
@@ -88,11 +87,12 @@ public class AWSDeployer implements Deployer {
 	private String userName;
 	@Value("${region}")
 	private String region;
+	@Value("${xd-zip-cache-url")
+	private String xdZipCacheUrl;
 
 	private AWSEC2Client client;
 	private ComputeService computeService;
 	AWSInstanceChecker awsInstanceChecker;
-	
 
 	@Autowired
 	AWSInstanceConfigurer configurer;
@@ -115,10 +115,11 @@ public class AWSDeployer implements Deployer {
 				.credentials(awsAccessKey, awsSecretKey)
 				.buildApi(AWSEC2Client.class);
 		awsInstanceChecker = new AWSInstanceChecker();
-
 	}
 
 	public List<XDInstanceType> deploy() throws TimeoutException {
+		configurer.validateConfiguration();
+
 		ArrayList<XDInstanceType> result = new ArrayList<XDInstanceType>();
 		String script = null;
 		if (getMultiNode().equalsIgnoreCase("false")) {
@@ -140,15 +141,26 @@ public class AWSDeployer implements Deployer {
 		RunningInstance instance = Iterables
 				.getOnlyElement(instanceProvisioner.runInstance(client,
 						configurer.getSingleNodeStartupScript(), 1));
-		
-		awsInstanceChecker.checkServerResources(instance,client,computeService);
-		instance = AWSInstanceProvisioner.findInstanceById(client, instance.getId());
+		awsInstanceChecker.checkServerResources(instance, client,
+				computeService);
 		logger.info("*******Setting up your single XD instance.*******");
+		instance = AWSInstanceProvisioner.findInstanceById(client,
+				instance.getId());
+		tagInitialization(instance);
+		try{
+			Thread.sleep(5000);
+		}catch(Exception e){
+			
+		}
 
-		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
-		runCommands(configurer.deploySingleNodeApplication(instance.getDnsName()), instance.getId());
+		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(),
+				instance.getId());
+		runCommands(
+				configurer.deploySingleNodeApplication(instance.getDnsName()),
+				instance.getId());
 		tagInstance(instance);
-		awsInstanceChecker.checkServerInstance(instance,client,computeService,9393);
+		awsInstanceChecker.checkServerInstance(instance, client,
+				computeService, 9393);
 
 		return new XDInstanceType(instance.getDnsName(),
 				instance.getIpAddress(),
@@ -186,6 +198,8 @@ public class AWSDeployer implements Deployer {
 		ExecResponse resp = computeService.runScriptOnNode(nodeId, script,
 				options);
 		logger.debug(resp.getOutput());
+		logger.debug(resp.getError());
+		logger.debug("ExitStatus is "+resp.getExitStatus());
 	}
 
 	/**
@@ -208,16 +222,25 @@ public class AWSDeployer implements Deployer {
 		return resp;
 	}
 
+	private void tagInitialization(RunningInstance instance){
+		Map<String, String> tags = new HashMap<String, String>();
+		tags.put("Name", "Initializing Instance for "+userName);
+		addTags(instance,tags);
+		
+	}
 	private void tagInstance(RunningInstance instance) {
-		ArrayList<String> list = new ArrayList<String>();
-		list.add(instance.getId());
 		Map<String, String> tags = new HashMap<String, String>();
 		tags.put("Name", clusterName);
 		tags.put("User Name", userName);
 		tags.put("Description", description);
 
-		client.getTagApiForRegion(region).get().applyToResources(tags, list);
+		addTags(instance,tags);
+	}
 
+	private void addTags(RunningInstance instance, Map<String,String>tags) {
+		ArrayList<String> list = new ArrayList<String>();
+		list.add(instance.getId());
+		client.getTagApiForRegion(region).get().applyToResources(tags, list);
 	}
 
 
@@ -242,19 +265,20 @@ public class AWSDeployer implements Deployer {
 		}
 		return result;
 	}
-	
-	private File getLibraryJarLocation(){
+
+	private File getLibraryJarLocation() {
 		File result = null;
 		File buildFile = new File("build/libs/spring-xd-ec2-1.0.jar");
 		File deployFile = new File("lib/spring-xd-ec2-1.0.jar");
-		if(buildFile.exists()){
+		if (buildFile.exists()) {
 			result = buildFile;
-		}else if(deployFile.exists()){
+		} else if (deployFile.exists()) {
 			result = deployFile;
 		}
-		
+
 		return result;
 	}
+
 	private void sshCopy(File file, String host, String nodeId) {
 		try {
 			LoginCredentials credential = LoginCredentials
@@ -264,19 +288,17 @@ public class AWSDeployer implements Deployer {
 			SshjSshClient client = new SshjSshClient(
 					new BackoffLimitedRetryHandler(), socket, credential, 5000);
 			FilePayload payload = new FilePayload(file);
-			client.put(
-					UBUNTU_HOME+"deploy.jar",
-					payload);
+			client.put(UBUNTU_HOME + "deploy.jar", payload);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-	private  String getPrivateKey() {
+
+	private String getPrivateKey() {
 		String result = "";
 		BufferedReader br = null;
 		try {
-			br = new BufferedReader(new FileReader(
-					privateKeyFile));
+			br = new BufferedReader(new FileReader(privateKeyFile));
 			while (br.ready()) {
 				result += br.readLine() + "\n";
 			}
@@ -306,6 +328,7 @@ public class AWSDeployer implements Deployer {
 		properties.setProperty(TIMEOUT_SCRIPT_COMPLETE, scriptTimeout + "");
 		return properties;
 	}
+
 	public String getMultiNode() {
 		return multiNode;
 	}
@@ -345,6 +368,5 @@ public class AWSDeployer implements Deployer {
 	public void setAwsInstanceChecker(AWSInstanceChecker awsInstanceChecker) {
 		this.awsInstanceChecker = awsInstanceChecker;
 	}
-	
 
 }

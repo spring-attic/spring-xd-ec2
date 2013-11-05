@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.xd.cloud.Deployer;
+import org.springframework.xd.cloud.InvalidXDZipUrlException;
 import org.springframework.xd.cloud.XDInstanceType;
 import org.springframework.xd.ec2.cloud.AWSDeployer;
 
@@ -71,7 +72,11 @@ public class Ec2Installer {
 		} catch (TimeoutException te) {
 			logger.error("Installation FAILED");
 			te.printStackTrace();
-		} catch (IllegalArgumentException iae) {
+		} catch (InvalidXDZipUrlException zipException) {
+			logger.error(zipException.getMessage());
+			zipException.printStackTrace();
+		} 
+		catch (IllegalArgumentException iae) {
 			logger.info(HIGHLIGHT);
 			logger.error("An IllegalArgumentException has been thrown with the following message: "
 					+ iae.getMessage());

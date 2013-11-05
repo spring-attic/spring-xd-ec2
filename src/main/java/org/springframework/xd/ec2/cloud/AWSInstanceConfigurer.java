@@ -28,9 +28,14 @@ import java.util.StringTokenizer;
 import org.jclouds.scriptbuilder.ScriptBuilder;
 import org.jclouds.scriptbuilder.domain.OsFamily;
 import org.jclouds.scriptbuilder.domain.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.xd.cloud.InstanceConfigurer;
+import org.springframework.xd.cloud.InvalidXDZipUrlException;
 import org.springframework.xd.ec2.environment.ConfigureSystem;
 
 /**
@@ -46,7 +51,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private String redisPort;
 	@Value("${rabbit-port}")
 	private String rabbitPort;
-
+	@Value("${xd-zip-cache-url}")
+	private String xdZipCacheUrl;
+	static final Logger logger = LoggerFactory.getLogger(AWSDeployer.class);
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
 
 	public String getSingleNodeStartupScript() {
@@ -57,6 +64,28 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return renderStatement(deploySingleNodeXDStatement(hostName));
 	}
 
+	public String getFileName() {
+		File file = new File(xdDistUrl);
+		return file.getName();
+	}
+
+	public void validateConfiguration() {
+		try {
+			checkURL(xdDistUrl);
+		} catch (HttpClientErrorException httpException) {
+			logger.error(httpException.getMessage());
+			throw new InvalidXDZipUrlException(
+					"Unable to download the XD Distribution you specified because, \" "
+							+ httpException.getMessage() + "\"");
+		}
+
+	}
+
+	public void checkURL(String url) {
+		RestTemplate template = new RestTemplate();
+		template.headForHeaders(url);
+	}
+
 	private String renderStatement(List<Statement> statements) {
 		ScriptBuilder builder = new ScriptBuilder();
 		for (Statement statement : statements) {
@@ -64,14 +93,16 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		}
 		Map<String, String> environmentVariables = new HashMap<String, String>();
 		environmentVariables.put("XD_HOME", getInstalledDirectory());
-		builder.addEnvironmentVariableScope("XD_HOME", environmentVariables);
+		builder.addEnvironmentVariableScope("default", environmentVariables);
 		String script = builder.render(OsFamily.UNIX);
 		return script;
 	}
 
 	private List<Statement> deploySingleNodeXDStatement(String hostName) {
 		ArrayList<Statement> result = new ArrayList<Statement>();
-		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
+		result.add(exec("export XD_HOME="+getInstalledDirectory()+"/xd"));
+		logger.info("Using the following host to obtain XD Distribution: "+getDistributionURL());
+		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
@@ -86,11 +117,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return result;
 	}
 
-	private String getFileName() {
-		File file = new File(xdDistUrl);
-		return file.getName();
-	}
-
 	private String getInstalledDirectory() {
 		File file = new File(xdDistUrl);
 		String path = file.getPath();
@@ -103,21 +129,38 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return String.format(UBUNTU_HOME + "spring-xd-%s",
 				tokens.get(tokenCount - 2));
 	}
-	private String getBinDirectory(){
-		return getInstalledDirectory()+"/xd/bin/";
+
+	private String getBinDirectory() {
+		return getInstalledDirectory() + "/xd/bin/";
 	}
+
 	private String getConfigDirectory() {
-		return getInstalledDirectory()+"/xd/config/";
+		return getInstalledDirectory() + "/xd/config/";
+	}
+
+	private String getDistributionURL(){
+		//check to see if the distribution is cached on S3 before pulling from server
+		String result = xdDistUrl;
+		try{
+			String cacheLocation = xdZipCacheUrl+"/"+getFileName();
+			checkURL(cacheLocation);
+			result = cacheLocation;
+		}catch(Exception exception){
+			//in this case we are catching the exception, only to state that the file is not in the cache.
 		}
-	private String constructConfigurationCommand(String hostName){
-		String configCommand = String.format("java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem --%s=%s --%s=%s --%s=%s --%s=%s --%s=%s --%s=%s > /home/ubuntu/config.txt 2> /home/ubuntu/configError.txt",
-		ConfigureSystem.RABBIT_PROPS_FILE, getConfigDirectory()+"rabbit.properties",
-		ConfigureSystem.REDIS_PROPS_FILE, getConfigDirectory()+"redis.properties",
-		ConfigureSystem.RABBIT_HOST, hostName,
-		ConfigureSystem.RABBIT_PORT, rabbitPort,
-		ConfigureSystem.REDIS_HOST, hostName,
-		ConfigureSystem.REDIS_PORT, redisPort
-		);
+		return result;
+	}
+	private String constructConfigurationCommand(String hostName) {
+		String configCommand = String
+				.format("java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem --%s=%s --%s=%s --%s=%s --%s=%s --%s=%s --%s=%s > /home/ubuntu/config.txt 2> /home/ubuntu/configError.txt",
+						ConfigureSystem.RABBIT_PROPS_FILE, getConfigDirectory()
+								+ "rabbit.properties",
+						ConfigureSystem.REDIS_PROPS_FILE, getConfigDirectory()
+								+ "redis.properties",
+						ConfigureSystem.RABBIT_HOST, hostName,
+						ConfigureSystem.RABBIT_PORT, rabbitPort,
+						ConfigureSystem.REDIS_HOST, hostName,
+						ConfigureSystem.REDIS_PORT, redisPort);
 		return configCommand;
 	}
 }
