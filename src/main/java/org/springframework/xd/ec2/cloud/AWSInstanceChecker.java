@@ -2,14 +2,11 @@ package org.springframework.xd.ec2.cloud;
 
 import static org.jclouds.util.Predicates2.retry;
 
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.jclouds.aws.ec2.AWSEC2Client;
 import org.jclouds.compute.ComputeService;
-import org.jclouds.ec2.EC2Client;
-import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.jclouds.ec2.predicates.InstanceStateRunning;
 import org.jclouds.predicates.SocketOpen;
@@ -17,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 import com.google.common.net.HostAndPort;
 
 public class AWSInstanceChecker {
