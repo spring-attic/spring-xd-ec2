@@ -42,7 +42,7 @@ public class AWSInstanceProvisioner implements InstanceProvisioner{
 	private String ami;
 	private String machineSize;
 	private String securityGroup;
-	private String privateKeyName;
+	private String publicKeyName;
 	private String region;
 
 	private EC2Client client;
@@ -52,7 +52,7 @@ public class AWSInstanceProvisioner implements InstanceProvisioner{
 		this.ami = properties.getProperty("ami");
 		this.machineSize = properties.getProperty("machine-size");
 		this.securityGroup = properties.getProperty("security-group");
-		this.privateKeyName = properties.getProperty("private-key-name");
+		this.publicKeyName = properties.getProperty("public-key-name");
 		this.region = properties.getProperty("region");
 	}
 
@@ -75,7 +75,7 @@ public class AWSInstanceProvisioner implements InstanceProvisioner{
 						ami, // XD Basic Image.
 						1, // minimum instances
 						numberOfInstances, // maximum instances
-						asType(getInstanceType()).withKeyName(privateKeyName)
+						asType(getInstanceType()).withKeyName(publicKeyName)
 								.withSecurityGroup(securityGroup)
 								.withUserData(script.getBytes()));
 		return reservation;

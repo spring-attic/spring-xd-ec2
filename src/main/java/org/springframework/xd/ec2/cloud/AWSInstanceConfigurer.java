@@ -31,10 +31,8 @@ import org.jclouds.scriptbuilder.domain.OsFamily;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.xd.cloud.InstanceConfigurer;
-import org.springframework.xd.cloud.InvalidXDZipUrlException;
 import org.springframework.xd.ec2.environment.ConfigureSystem;
 
 /**
@@ -50,7 +48,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private String redisPort;
 	private String rabbitPort;
 	private String xdZipCacheUrl;
-	static final Logger logger = LoggerFactory
+	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
 
@@ -68,9 +66,17 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	public String createStartXDResourcesScript() {
 		return renderStatement(startXDResourceStatement());
 	}
-
+	
 	/**
-	 * Generate the command script that will install and setup
+	 * Execute steps necessary to setup a container node for XD.
+	 * @return
+	 */
+	public String bootstrapXDNodeScript(){
+		return renderStatement(bootstrapNodeStatement());
+	}
+	
+	/**
+	 * Generate the command script that will install and setup a single node
 	 * 
 	 * @param hostName
 	 * @return
@@ -79,6 +85,25 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return renderStatement(deploySingleNodeXDStatement(hostName));
 	}
 
+	/**
+	 * Generate the command script that will install and setup an administrator
+	 * 
+	 * @param hostName
+	 * @return
+	 */
+	public String createAdminNodeScript(String hostName) {
+		return renderStatement(deployAdminNodeXDStatement(hostName));
+	}
+
+	/**
+	 * Generate the command script that will install and setup a container ndoe
+	 * 
+	 * @param hostName
+	 * @return
+	 */
+	public String createContainerNodeScript(String hostName) {
+		return renderStatement(deployContainerNodeXDStatement(hostName));
+	}	
 	/**
 	 * Extracts the file's name from the xdDistURL property.
 	 * 
@@ -113,7 +138,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 *         configuration script.
 	 */
 	private String renderStatement(List<Statement> statements) {
-		ScriptBuilder builder = new ScriptBuilder();
+		final ScriptBuilder builder = new ScriptBuilder();
 		for (Statement statement : statements) {
 			builder.addStatement(statement);
 		}
@@ -137,7 +162,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private List<Statement> deploySingleNodeXDStatement(String hostName) {
 		ArrayList<Statement> result = new ArrayList<Statement>();
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
-		logger.info("Using the following host to obtain XD Distribution: "
+		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
@@ -147,6 +172,49 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return result;
 	}
 
+	/**
+	 * Generates the script that will be executed on the instance Operating
+	 * SYstem. The script that will be generated will: -- retrieve the
+	 * distribution the user requested -- install distribution on the OS. --
+	 * configure the distribution e -- start the distribution as an admin.
+	 * 
+	 * @param hostName
+	 * @return the script that will used to initialize the application.
+	 */
+	private List<Statement> deployAdminNodeXDStatement(String hostName) {
+		ArrayList<Statement> result = new ArrayList<Statement>();
+		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
+		LOGGER.info("Using the following host to obtain XD Distribution: "
+				+ getDistributionURL());
+		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
+		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
+				+ UBUNTU_HOME));
+		result.add(exec(constructConfigurationCommand(hostName)));
+		result.add(exec(getBinDirectory() + "xd-admin &"));
+		return result;
+	}
+	
+	/**
+	 * Generates the script that will be executed on the instance Operating
+	 * SYstem. The script that will be generated will: -- retrieve the
+	 * distribution the user requested -- install distribution on the OS. --
+	 * configure the distribution e -- start the distribution as an container.
+	 * 
+	 * @param hostName
+	 * @return the script that will used to initialize the application.
+	 */
+	private List<Statement> deployContainerNodeXDStatement(String hostName) {
+		ArrayList<Statement> result = new ArrayList<Statement>();
+		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
+		LOGGER.info("Using the following host to obtain XD Distribution: "
+				+ getDistributionURL());
+		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
+		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
+				+ UBUNTU_HOME));
+		result.add(exec(constructConfigurationCommand(hostName)));
+		result.add(exec(getBinDirectory() + "xd-container &"));
+		return result;
+	}	
 	/**
 	 * Generates the statements that will start the resources needed for the XD
 	 * admin.
@@ -160,6 +228,18 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return result;
 	}
 
+	/**
+	 * Generates the statements that will start the resources needed for the XD
+	 * admin.
+	 * 
+	 * @return a listing of statements used to start resources needed for XD.
+	 */
+	private List<Statement> bootstrapNodeStatement() {
+		ArrayList<Statement> result = new ArrayList<Statement>();
+		result.add(exec("ls -al"));
+		return result;
+	}
+	
 	private String getInstalledDirectory() {
 		File file = new File(xdDistUrl);
 		String path = file.getPath();

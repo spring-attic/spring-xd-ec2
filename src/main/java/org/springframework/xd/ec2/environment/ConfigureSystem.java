@@ -32,23 +32,22 @@ import java.util.StringTokenizer;
  * 
  */
 public class ConfigureSystem {
-	public static String REDIS_PROPS_FILE = "redis.props.file";
-	public static String RABBIT_PROPS_FILE = "rabbit.props.file";
+	public static final String REDIS_PROPS_FILE = "redis.props.file";
+	public static final String RABBIT_PROPS_FILE = "rabbit.props.file";
 
-	public static String REDIS_HOST = "redis.hostname";
-	public static String REDIS_PORT = "redis.port";
-	public static String RABBIT_HOST = "rabbit.hostname";
-	public static String RABBIT_PORT = "rabbit.port";
+	public static final String REDIS_HOST = "redis.hostname";
+	public static final String REDIS_PORT = "redis.port";
+	public static final String RABBIT_HOST = "rabbit.hostname";
+	public static final String RABBIT_PORT = "rabbit.port";
 
 	public static void main(String[] args) {
-		System.out.println("Starting the Configuration process");
-		System.out.flush();
-		Properties props = getCommandLineProperties(args);
-		File redisPropertyFile = new File(getPropFileForRedis(props));
-		File rabbitPropertyFile = new File(getPropFileForRabbit(props));
+		ConfigureSystem configureSystem = new ConfigureSystem();
+		Properties props = configureSystem.getCommandLineProperties(args);
+		File redisPropertyFile = new File(configureSystem.getPropFileForRedis(props));
+		File rabbitPropertyFile = new File(configureSystem.getPropFileForRabbit(props));
 
-		Properties redisProperties = getPropertiesForRedis(props);
-		Properties rabbitProperties = getPropertiesForRabbit(props);
+		Properties redisProperties = configureSystem.getPropertiesForRedis(props);
+		Properties rabbitProperties = configureSystem.getPropertiesForRabbit(props);
 
 		try {
 			redisProperties.store(new FileOutputStream(redisPropertyFile),
@@ -59,13 +58,11 @@ public class ConfigureSystem {
 
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
-			System.out.println("Failed to configure application ==>"+ioe.getMessage());
 		}
-		System.out.println("Completed the Configuration process");
 
 	}
 
-	private static String getPropFileForRedis(
+	private String getPropFileForRedis(
 			Properties propertySource) {
 		if (!propertySource.containsKey(REDIS_PROPS_FILE)) {
 			throw new IllegalArgumentException(
@@ -74,7 +71,7 @@ public class ConfigureSystem {
 		return propertySource.getProperty(REDIS_PROPS_FILE);
 	}
 
-	private static String getPropFileForRabbit(
+	private String getPropFileForRabbit(
 			Properties propertySource) {
 		if (!propertySource.containsKey(RABBIT_PROPS_FILE)) {
 			throw new IllegalArgumentException(
@@ -83,7 +80,7 @@ public class ConfigureSystem {
 		return propertySource.getProperty(RABBIT_PROPS_FILE);
 	}
 
-	private static Properties getPropertiesForRedis(
+	private Properties getPropertiesForRedis(
 			Properties propertySource) {
 		Properties props = new Properties();
 		if (!propertySource.containsKey(REDIS_HOST)) {
@@ -98,7 +95,7 @@ public class ConfigureSystem {
 		return props;
 	}
 
-	private static Properties getPropertiesForRabbit(
+	private Properties getPropertiesForRabbit(
 			Properties propertySource) {
 		Properties props = new Properties();
 		if (!propertySource.containsKey(RABBIT_HOST)) {
@@ -112,7 +109,7 @@ public class ConfigureSystem {
 		props.setProperty(RABBIT_PORT, propertySource.getProperty(RABBIT_PORT));
 		return props;
 	}
-	private static Properties getCommandLineProperties(String []args){
+	private Properties getCommandLineProperties(String []args){
 		Properties props = new Properties();
 		for(String arg:args){
 			if(!arg.startsWith("--")||arg.indexOf('=')<0){

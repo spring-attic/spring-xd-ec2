@@ -23,6 +23,8 @@ import java.io.InputStreamReader;
 
 import javax.annotation.Resource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -31,16 +33,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class Banner implements ApplicationContextAware {
 	@Resource
-	private ApplicationContext context;
+	private transient ApplicationContext context;
+	private static final Logger LOGGER = LoggerFactory.getLogger(Banner.class);
 
 	public void print() {
 		BufferedReader stream = null;
 		try {
-			InputStream inputStream = context.getResource("banner.txt")
+			final InputStream inputStream = context.getResource("banner.txt")
 					.getInputStream();
 			stream = new BufferedReader(new InputStreamReader(inputStream));
 			while (stream.ready()) {
-				System.out.println(stream.readLine());
+				LOGGER.info(stream.readLine());
 			}
 		} catch (IOException ioe) {
 			// Ignore as this is not essential for the application
@@ -55,7 +58,7 @@ public class Banner implements ApplicationContextAware {
 		}
 	}
 
-	public void setApplicationContext(ApplicationContext applicationContext)
+	public void setApplicationContext(final ApplicationContext applicationContext)
 			throws BeansException {
 		this.context = applicationContext;
 
