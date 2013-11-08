@@ -68,7 +68,6 @@ public class TestAWSInstanceConfigurer {
 	 */
 	@Test
 	public void testDeploySingleNodeApplication() {
-		System.out.println(xdDistUrl);
 		String result = configurer.createSingleNodeScript("MYHOST");
 		assertTrue("Was not able to find wget command ",result.indexOf(WGET_COMMAND)>-1);
 		assertTrue("XD was not unzipped to the correct location ",result.indexOf(UNZIP_COMMAND)>-1);
@@ -79,7 +78,6 @@ public class TestAWSInstanceConfigurer {
 		assertTrue("Rabbit port was not setup properly",result.indexOf("--rabbit.port=9898")>-1);
 		assertTrue("Rabbit hostname was not setup properly",result.indexOf("--rabbit.hostname=MYHOST")>-1);
 
-		System.out.println(result);
 	}
 
 }

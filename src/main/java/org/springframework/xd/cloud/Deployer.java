@@ -64,12 +64,11 @@ public interface Deployer {
 	 * Deploys the node instances for XD.
 	 * 
 	 * @param script
-	 *            - The script built by JClouds Script Builder that initializes
-	 *            the each of the container nodes to refer to the admin server
+	 *            - The admin server this container will be associated.
 	 * @return A list of instances and whether they were successfully created or
 	 *         not.
 	 * @throws TimeoutException
 	 */
-	public List<Deployment> deployContainerServer(String script);
+	public List<Deployment> deployContainerServer(String hostName) throws TimeoutException;
 
 }
