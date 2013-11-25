@@ -6,6 +6,19 @@ sourceCompatibility = 1.7
 version = '1.0'
 mainClassName = "org.springframework.xd.ec2.Main"
 
+buildscript {
+	repositories {
+		maven { url "http://repo.springsource.org/plugins-snapshot" }
+	}
+	dependencies {
+		classpath("org.springframework.boot:spring-boot-gradle-plugin:0.5.0.BUILD-SNAPSHOT")
+		classpath("org.springframework.build.gradle:propdeps-plugin:0.0.3")
+		classpath("org.springframework.build.gradle:docbook-reference-plugin:0.2.7-SNAPSHOT")
+		classpath 'org.asciidoctor:asciidoctor-gradle-plugin:0.4.1'
+		classpath 'org.ajoberstar:gradle-git:0.4.0'
+		classpath 'me.champeau.gradle:gradle-javadoc-hotfix-plugin:0.1'
+	}
+}
 
 repositories {
     mavenCentral()
@@ -32,7 +45,22 @@ ext {
 	commonsVersion = '3.2'
 	jcloudsVersion = '1.6.0'
 	logbackVersion = '1.0.13'
+    linkHomepage = 'https://github.com/spring-projects/spring-xd-ec2'
+    linkCi       = 'https://build.springsource.org/browse/XD'
+    linkIssue    = 'https://jira.springsource.org/browse/XD'
+    linkScmUrl           = 'https://github.com/spring-projects/spring-xd-ec2'
+    linkScmConnection    = 'https://github.com/spring-projects/spring-xd-ec2.git'
+    linkScmDevConnection = 'git@github.com:spring-projects/spring-xd-ec2.git'
+	javadocLinks = [
+		"http://static.springsource.org/spring-shell/docs/current/api/"
+	] as String[]
+
 	}
+	
+configurations {
+                jacoco //Configuration Group used by Sonar to provide Code Coverage using JaCoCo
+}
+
 dependencies {
     compile "org.slf4j:log4j-over-slf4j:$log4jBridgeVersion"
     compile "commons-collections:commons-collections:$commonsVersion"
@@ -44,12 +72,13 @@ dependencies {
 	compile "org.springframework:spring-test:$springVersion"
 	compile "ch.qos.logback:logback-classic:$logbackVersion"
 	
+    jacoco group: "org.jacoco", name: "org.jacoco.agent", version: "0.6.2.201302030002", classifier: "runtime"
 	
 	testCompile "org.springframework:spring-test:$springVersion"
 	testCompile "org.mockito:mockito-all:$mockitoVersion"
     testCompile group: 'junit', name: 'junit', version: '4.+'
+        
 }
-
 
 
 startScripts {
@@ -62,9 +91,26 @@ startScripts {
     }
 }
 
+apply plugin: 'sonar-runner'
+
+sonarRunner {
+        sonarProperties {
+                property "sonar.jacoco.reportPath", "${buildDir.name}/jacoco.exec"
+                property "sonar.links.homepage", linkHomepage
+                property "sonar.links.ci", linkCi
+                property "sonar.links.issue", linkIssue
+                property "sonar.links.scm", linkScmUrl
+                property "sonar.links.scm_dev", linkScmDevConnection
+                property "sonar.java.coveragePlugin", "jacoco"
+        }
+}
 
 test {
     systemProperties 'property': 'value'
+    	jvmArgs "-javaagent:${configurations.jacoco.asPath}=destfile=${buildDir}/jacoco.exec,includes=org.springframework.xd.*"
+		jvmArgs "-XX:MaxPermSize=256m"
+		jvmArgs "-Djava.net.preferIPv4Stack=true"
+
 }
 uploadArchives {
     repositories {
@@ -73,3 +119,9 @@ uploadArchives {
        }
     }
 }
+task wrapper(type: Wrapper) {
+	description = "Generates build_xd_ec2[.bat] scripts"
+	gradleVersion = "1.6"
+}
+
+
