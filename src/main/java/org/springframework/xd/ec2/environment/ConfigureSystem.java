@@ -16,9 +16,12 @@
 
 package org.springframework.xd.ec2.environment;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
@@ -32,83 +35,32 @@ import java.util.StringTokenizer;
  * 
  */
 public class ConfigureSystem {
-	public static final String REDIS_PROPS_FILE = "redis.props.file";
-	public static final String RABBIT_PROPS_FILE = "rabbit.props.file";
-
-	public static final String REDIS_HOST = "redis.hostname";
-	public static final String REDIS_PORT = "redis.port";
-	public static final String RABBIT_HOST = "rabbit.hostname";
-	public static final String RABBIT_PORT = "rabbit.port";
 
 	public static void main(String[] args) {
 		ConfigureSystem configureSystem = new ConfigureSystem();
 		Properties props = configureSystem.getCommandLineProperties(args);
-		File redisPropertyFile = new File(configureSystem.getPropFileForRedis(props));
-		File rabbitPropertyFile = new File(configureSystem.getPropFileForRabbit(props));
-
-		Properties redisProperties = configureSystem.getPropertiesForRedis(props);
-		Properties rabbitProperties = configureSystem.getPropertiesForRabbit(props);
 
 		try {
-			redisProperties.store(new FileOutputStream(redisPropertyFile),
-					"Updated by EC2 Configuration Script");
-
-			rabbitProperties.store(new FileOutputStream(rabbitPropertyFile),
-					"Updated by EC2 Configuration Script");
-
-		} catch (IOException ioe) {
-			ioe.printStackTrace();
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(configureSystem.getBashRC(), true)));
+			Iterator<Entry<Object,Object>>iter = props.entrySet().iterator();
+		    out.println("\n Updated by XD Configurer");
+			while(iter.hasNext()){
+				Entry<Object,Object> entry = iter.next();
+				out.print("\n export ".concat((String) entry.getKey()).concat("=").concat((String) entry.getValue()));
+			}
+		    out.println("\n");
+		    out.close();
+		} catch (IOException e) {
+		   e.printStackTrace();
 		}
+		System.out.println("Complete");
 
 	}
 
-	private String getPropFileForRedis(
-			Properties propertySource) {
-		if (!propertySource.containsKey(REDIS_PROPS_FILE)) {
-			throw new IllegalArgumentException(
-					"Redis property file "+propertySource.get(REDIS_PROPS_FILE)+" param not present.");
-		}
-		return propertySource.getProperty(REDIS_PROPS_FILE);
+	private String getBashRC(){
+			return "/home/ubuntu/.bashrc";
 	}
 
-	private String getPropFileForRabbit(
-			Properties propertySource) {
-		if (!propertySource.containsKey(RABBIT_PROPS_FILE)) {
-			throw new IllegalArgumentException(
-					"Rabbit property file param not present.");
-		}
-		return propertySource.getProperty(RABBIT_PROPS_FILE);
-	}
-
-	private Properties getPropertiesForRedis(
-			Properties propertySource) {
-		Properties props = new Properties();
-		if (!propertySource.containsKey(REDIS_HOST)) {
-			throw new IllegalArgumentException("Redis Host Not Present.");
-		}
-		if (!propertySource.containsKey(REDIS_PORT)) {
-			throw new IllegalArgumentException("Redis Port Not Present.");
-		}
-
-		props.setProperty(REDIS_HOST, propertySource.getProperty(REDIS_HOST));
-		props.setProperty(REDIS_PORT, propertySource.getProperty(REDIS_PORT));
-		return props;
-	}
-
-	private Properties getPropertiesForRabbit(
-			Properties propertySource) {
-		Properties props = new Properties();
-		if (!propertySource.containsKey(RABBIT_HOST)) {
-			throw new IllegalArgumentException("Rabbit Host Not Present.");
-		}
-		if (!propertySource.containsKey(RABBIT_PORT)) {
-			throw new IllegalArgumentException("Rabbit Port Not Present.");
-		}
-
-		props.setProperty(RABBIT_HOST, propertySource.getProperty(RABBIT_HOST));
-		props.setProperty(RABBIT_PORT, propertySource.getProperty(RABBIT_PORT));
-		return props;
-	}
 	private Properties getCommandLineProperties(String []args){
 		Properties props = new Properties();
 		for(String arg:args){

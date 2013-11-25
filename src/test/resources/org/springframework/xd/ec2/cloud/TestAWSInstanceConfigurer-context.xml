@@ -6,4 +6,15 @@
 
 	<context:property-placeholder location="classpath:test-xd-ec2.properties" />
 	<context:component-scan base-package="org.springframework.xd" />
+	
+		<bean id="myProperties"
+		class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+		<property name="locations">
+			<list>
+				<value>classpath:test-xd-ec2.properties</value>
+			</list>
+		</property>
+	</bean>
+	
+	
 </beans>

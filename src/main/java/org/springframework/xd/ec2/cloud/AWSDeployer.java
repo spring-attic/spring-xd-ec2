@@ -23,7 +23,6 @@ import static org.jclouds.scriptbuilder.domain.Statements.exec;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,6 +37,7 @@ import org.jclouds.ContextBuilder;
 import org.jclouds.aws.ec2.AWSEC2Client;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
+import org.jclouds.compute.callables.ScriptStillRunningException;
 import org.jclouds.compute.domain.ExecResponse;
 import org.jclouds.compute.options.RunScriptOptions;
 import org.jclouds.domain.Credentials;
@@ -51,14 +51,10 @@ import org.jclouds.sshj.SshjSshClient;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.xd.cloud.Deployer;
 import org.springframework.xd.cloud.Deployment;
 import org.springframework.xd.cloud.DeploymentStatus;
-import org.springframework.xd.cloud.InstanceSize;
 import org.springframework.xd.cloud.InstanceType;
 import org.springframework.xd.cloud.InvalidXDZipUrlException;
 
@@ -85,6 +81,7 @@ public class AWSDeployer implements Deployer {
 	private transient String userName;
 	private transient String region;
 	private transient String numberOfInstances;
+	private transient String transport;
 
 	private AWSEC2Client client;
 	private ComputeService computeService;
@@ -106,6 +103,7 @@ public class AWSDeployer implements Deployer {
 		userName = properties.getProperty("user_name");
 		region = properties.getProperty("region");
 		numberOfInstances = properties.getProperty("number-nodes");
+		transport = properties.getProperty("xd-transport");
 
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
@@ -165,7 +163,7 @@ public class AWSDeployer implements Deployer {
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
 		return deploySingleServer(
-				configurer.createAdminNodeScript(instance.getDnsName()),
+				configurer.createAdminNodeScript(instance.getDnsName(),transport),
 				instance, InstanceType.ADMIN);
 	}
 
@@ -194,9 +192,15 @@ public class AWSDeployer implements Deployer {
 		tagInitialization(instance, type);
 		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(),
 				instance.getId());
+		boolean isInitialized = true;
+		try{
 		runCommands(script, instance.getId());
+		}catch(Exception ssre){
+			LOGGER.warn(ssre.getLocalizedMessage());
+			isInitialized = false;
+		}
 		tagInstance(instance, type);
-		if(instanceChecker.checkContainerProcess(instance,getKeyPair())){
+		if(isInitialized && instanceChecker.checkContainerProcess(instance,getKeyPair())){
 			LOGGER.info("Container "+ instance.getId() +" started/n" );
 		}else{
 			LOGGER.info("Container "+ instance.getId() +" did not start/n" );
@@ -204,7 +208,12 @@ public class AWSDeployer implements Deployer {
 		Deployment result = null;
 		try {
 			InetAddress address = InetAddress.getByName(instance.getDnsName());
-			result = new Deployment(address, type, DeploymentStatus.SUCCESS);
+			if(isInitialized){
+				result = new Deployment(address, type, DeploymentStatus.SUCCESS);
+			}else{
+				result = new Deployment(address, type, DeploymentStatus.FAILURE);
+				
+			}
 		} catch (Exception ex) {
 			LOGGER.error(ex.getMessage());
 		}
@@ -228,7 +237,7 @@ public class AWSDeployer implements Deployer {
 					instance.getId());
 			deploymentList
 					.add(installContainerServer(configurer
-							.createContainerNodeScript(hostName),
+							.createContainerNodeScript(hostName,transport),
 							instance, InstanceType.NODE));
 			Map<String, String> nodeId = new HashMap<String,String>();
 			nodeId.put("Container_Node", String.valueOf(currentInstance));
