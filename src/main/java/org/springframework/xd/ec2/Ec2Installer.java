@@ -29,7 +29,6 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.xd.cloud.Deployer;
 import org.springframework.xd.cloud.Deployment;
 import org.springframework.xd.cloud.InstanceSize;
@@ -56,7 +55,7 @@ public class Ec2Installer {
 	private transient Banner banner;
 
 	private transient Deployer deployer;
-	private static final String[] REQUIRED_ENTRIES = { "cluster-name",
+	public static final String[] REQUIRED_ENTRIES = { "cluster-name",
 			"aws-access-key", "aws-secret-key", "private-key-file",
 			"user_name", "region", "machine-size", "security-group",
 			"public-key-name", "ami", "multi-node" };
@@ -101,6 +100,7 @@ public class Ec2Installer {
 			LOGGER.error("\nMake sure you updated the config/xd-ec2.properties");
 			LOGGER.info(HIGHLIGHT);
 			LOGGER.info(iae.getMessage());
+			iae.printStackTrace();
 		}
 	}
 

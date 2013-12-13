@@ -36,8 +36,8 @@ public class AWSInstanceChecker {
 			ComputeService computeService) {
 		this.client = client;
 		this.computeService = computeService;
-		redisPort = Integer.valueOf(properties.getProperty("redis-port"));
-		rabbitPort = Integer.valueOf(properties.getProperty("rabbit-port"));
+		redisPort = Integer.valueOf(properties.getProperty("spring.redis.port"));
+		rabbitPort = Integer.valueOf(properties.getProperty("spring.rabbitmq.port"));
 
 	}
 

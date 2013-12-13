@@ -18,10 +18,14 @@ package org.springframework.xd.ec2.cloud;
 
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
+
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.config.PropertiesFactoryBean;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -30,9 +34,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 public class TestAWSInstanceConfigurer {
 	@Value("${xd-dist-url}")
 	private String xdDistUrl;
-	@Value("${redis-port}")
+	@Value("${spring.data.redis.port}")
 	private String redisPort;
-	@Value("${rabbit-port}")
+	@Value("${spring.rabbitmq.port}")
 	private String rabbitPort;
 
 	private static final String XD_HOME_VALUE = "export XD_HOME=\"/home/ubuntu/spring-xd-X.X.X.BUILD-SNAPSHOT\"";
@@ -40,11 +44,19 @@ public class TestAWSInstanceConfigurer {
 	private static final String REDIS_INIT_VALUE = "/etc/init.d/redis-server start";
 	private static final String RABBIT_INIT_VALUE = "/etc/init.d/rabbitmq-server start";
 	private static final String UNZIP_COMMAND = "unzip /home/ubuntu/spring-xd-1.0.0.XXXX-20131024.235055-1.zip -d /home/ubuntu/";
-/*
-	@Autowired
-	AWSInstanceConfigurer configurer;
-*/
+	private static final String REDIS_CONFIG = "--spring_data_redis_port=7878";
+	private static final String RABBIT_CONFIG = "--spring_rabbitmq_port=9898";
 
+	@Autowired
+	PropertiesFactoryBean myProperties;
+	                      
+	AWSInstanceConfigurer configurer;
+
+	@Before
+	public void setup() throws IOException{
+		configurer = new AWSInstanceConfigurer(myProperties.getObject());
+	}
+    
 	/**
 	 * This test verifies that the generated script will start redis and rabbit.
 	 * This assumes that the redis and rabbit have been installed by wget which
@@ -52,14 +64,13 @@ public class TestAWSInstanceConfigurer {
 	 */
 	@Test
 	public void testGetSingleNodeStartupScript() {
-/*		String result = configurer.createStartXDResourcesScript();
+		String result = configurer.createStartXDResourcesScript();
 		assertTrue("Was not able to find where XD_HOME is set",
 				result.indexOf(XD_HOME_VALUE) > -1);
 		assertTrue("Was not able to find where Rabbit startup",
 				result.indexOf(RABBIT_INIT_VALUE) > -1);
 		assertTrue("Was not able to find where Redis startup",
 				result.indexOf(REDIS_INIT_VALUE) > -1);
-*/
 	}
 
 	/**
@@ -69,16 +80,25 @@ public class TestAWSInstanceConfigurer {
 	 */
 	@Test
 	public void testDeploySingleNodeApplication() {
-/*		String result = configurer.createSingleNodeScript("MYHOST");
+		String result = configurer.createSingleNodeScript("MYHOST");
+		assertTrue("Was not able to find the rabbit port configuration.",result.indexOf(RABBIT_CONFIG)>-1);
+		assertTrue("Was not able to find the redis port configuration.",result.indexOf(REDIS_CONFIG)>-1);
+
 		assertTrue("Was not able to find wget command ",result.indexOf(WGET_COMMAND)>-1);
 		assertTrue("XD was not unzipped to the correct location ",result.indexOf(UNZIP_COMMAND)>-1);
-
-		assertTrue("Redis port was not setup properly",result.indexOf("--redis.port=7878")>-1);
-		assertTrue("Redis hostname was not setup properly",result.indexOf("--redis.hostname=MYHOST")>-1);
-
-		assertTrue("Rabbit port was not setup properly",result.indexOf("--rabbit.port=9898")>-1);
-		assertTrue("Rabbit hostname was not setup properly",result.indexOf("--rabbit.hostname=MYHOST")>-1);
-*/
 	}
+	/**
+	 * Checks to see that the script will pull the correct xd version. Checks to
+	 * see if the script will run the commands to install XD. Checks to see if
+	 * script will start a single node.
+	 */
+	@Test
+	public void testDeployContainerApplication() {
+		String result = configurer.createContainerNodeScript("MYHOST","redis");
+		assertTrue("Was not able to find the rabbit port configuration.",result.indexOf(RABBIT_CONFIG)>-1);
+		assertTrue("Was not able to find the redis port configuration.",result.indexOf(REDIS_CONFIG)>-1);
 
+		assertTrue("Was not able to find wget command ",result.indexOf(WGET_COMMAND)>-1);
+		assertTrue("XD was not unzipped to the correct location ",result.indexOf(UNZIP_COMMAND)>-1);
+	}
 }
