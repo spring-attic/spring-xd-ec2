@@ -47,7 +47,7 @@ public class AWSInstanceChecker {
 				instance.getId());
 		final SocketOpen socketOpen = computeService.getContext().utils().injector()
 				.getInstance(SocketOpen.class);
-		final Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 1,
+		final Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 10,
 				TimeUnit.SECONDS);
 		LOGGER.info(String.format("Awaiting XD server to start %n"));
 		if (!socketTester.apply(HostAndPort.fromParts(localInstance.getIpAddress(),
