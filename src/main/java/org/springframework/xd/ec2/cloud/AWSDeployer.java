@@ -81,7 +81,8 @@ public class AWSDeployer implements Deployer {
 	private transient String userName;
 	private transient String region;
 	private transient String numberOfInstances;
-	private transient String transport;
+	private transient String controlTransport;
+	private transient String dataTransport;
 
 	private AWSEC2Client client;
 	private ComputeService computeService;
@@ -103,7 +104,8 @@ public class AWSDeployer implements Deployer {
 		userName = properties.getProperty("user_name");
 		region = properties.getProperty("region");
 		numberOfInstances = properties.getProperty("number-nodes");
-		transport = properties.getProperty("xd-transport");
+		controlTransport = properties.getProperty("xd-control-transport");
+		dataTransport = properties.getProperty("xd-data-transport");
 
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
@@ -163,7 +165,7 @@ public class AWSDeployer implements Deployer {
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
 		return deploySingleServer(
-				configurer.createAdminNodeScript(instance.getDnsName(),transport),
+				configurer.createAdminNodeScript(instance.getDnsName(),controlTransport),
 				instance, InstanceType.ADMIN);
 	}
 
@@ -237,7 +239,7 @@ public class AWSDeployer implements Deployer {
 					instance.getId());
 			deploymentList
 					.add(installContainerServer(configurer
-							.createContainerNodeScript(hostName,transport),
+							.createContainerNodeScript(hostName,controlTransport, dataTransport),
 							instance, InstanceType.NODE));
 			Map<String, String> nodeId = new HashMap<String,String>();
 			nodeId.put("Container_Node", String.valueOf(currentInstance));

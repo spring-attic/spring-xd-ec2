@@ -106,8 +106,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return
 	 */
-	public String createContainerNodeScript(String hostName, String transport) {
-		return renderStatement(deployContainerNodeXDStatement(hostName,transport));
+	public String createContainerNodeScript(String hostName, String controlTransport, String dataTransport) {
+		return renderStatement(deployContainerNodeXDStatement(hostName,controlTransport, dataTransport));
 	}	
 	/**
 	 * Extracts the file's name from the xdDistURL property.
@@ -193,7 +193,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-admin "+getTransportString(transport) +" &"));
+		result.add(exec(getBinDirectory() + "xd-admin "+getControlTransportString(transport) +" &"));
 		return result;
 	}
 	
@@ -207,7 +207,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param logConfig the name of the 
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deployContainerNodeXDStatement(String hostName, String transport) {
+	private List<Statement> deployContainerNodeXDStatement(String hostName, String controlTransport, String transport) {
 		List<Statement> result = initializeEnvironmentStatements(hostName);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		LOGGER.info("Using the following host to obtain XD Distribution: "
@@ -216,12 +216,21 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-container "+getTransportString(transport) +" &"));
+		result.add(exec(getBinDirectory() + "xd-container "+getControlTransportString(controlTransport) +" "+getDataTransportString(transport)+" &"));
 		return result;
 	}	
 
-	private String getTransportString(String transport){
-		final String BASE_TRANSPORT_PREFIX="--transport=";
+	private String getControlTransportString(String transport){
+		final String BASE_TRANSPORT_PREFIX="--controlTransport ";
+		String result = "";
+		if(transport.equalsIgnoreCase(Transports.rabbit.name())){
+			result= BASE_TRANSPORT_PREFIX+Transports.rabbit.name();
+		}
+		return result;
+	}
+
+	private String getDataTransportString(String transport){
+		final String BASE_TRANSPORT_PREFIX="--transport ";
 		String result = "";
 		if(transport.equalsIgnoreCase(Transports.rabbit.name())){
 			result= BASE_TRANSPORT_PREFIX+Transports.rabbit.name();
@@ -296,6 +305,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			if(((String)entry.getKey()).startsWith("spring.")){
 				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
 			}
+			if(((String)entry.getKey()).startsWith("amq.")){
+				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+			}
+			if(((String)entry.getKey()).startsWith("mqtt.")){
+				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+			}
+
 		}
 		configCommand = configCommand+" --XD_HOME="+getInstalledDirectory() + "/xd";
 		configCommand = configCommand+" --"+RABBIT_HOST+"="+hostName;
@@ -316,12 +332,19 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		result.add(exec("export "+RABBIT_HOST+"="+hostName));
 		result.add(exec("export "+REDIS_HOST+"="+hostName));
-		
 		while(iter.hasNext()){
 			Entry<Object,Object>entry = (Entry<Object,Object>)iter.next();
+
 			if(((String)entry.getKey()).startsWith("spring.")){
 				result.add(exec("export "+((String)entry.getKey()).replace(".","_")+"="+entry.getValue()));
 			}
+			if(((String)entry.getKey()).startsWith("amq.")){
+				result.add(exec("export "+((String)entry.getKey()).replace(".","_")+"="+entry.getValue()));
+			}
+			if(((String)entry.getKey()).startsWith("mqtt.")){
+				result.add(exec("export "+((String)entry.getKey()).replace(".","_")+"="+entry.getValue()));
+			}
+
 		}
 	   
 	   return result;
