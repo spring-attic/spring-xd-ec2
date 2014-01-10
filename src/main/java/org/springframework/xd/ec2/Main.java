@@ -15,6 +15,8 @@
  */
 package org.springframework.xd.ec2;
 
+import java.util.concurrent.TimeoutException;
+
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
@@ -24,7 +26,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  */
 public class Main {
 
-	public static void main(String[] args) throws Exception{
+	public static void main(String[] args) throws Exception {
 
 		@SuppressWarnings("resource")
 		AbstractApplicationContext ctx = new ClassPathXmlApplicationContext(
@@ -34,7 +36,12 @@ public class Main {
 		ctx.refresh();
 		// Begin Installation
 		Ec2Installer installer = ctx.getBean(Ec2Installer.class);
-		installer.install();
+		try {
+			installer.install();
+		} catch (TimeoutException te) {
+			te.printStackTrace();
+			System.exit(1);
+		}
 	}
 
 }

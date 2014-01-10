@@ -19,6 +19,7 @@ package org.springframework.xd.ec2.cloud;
 import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_PORT_OPEN;
 import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_SCRIPT_COMPLETE;
 import static org.jclouds.scriptbuilder.domain.Statements.exec;
+import static org.springframework.xd.ec2.Ec2Installer.HIGHLIGHT;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -37,7 +38,6 @@ import org.jclouds.ContextBuilder;
 import org.jclouds.aws.ec2.AWSEC2Client;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.compute.callables.ScriptStillRunningException;
 import org.jclouds.compute.domain.ExecResponse;
 import org.jclouds.compute.options.RunScriptOptions;
 import org.jclouds.domain.Credentials;
@@ -156,7 +156,9 @@ public class AWSDeployer implements Deployer {
 	}
 
 	public Deployment deployAdminServer(String script) throws TimeoutException {
-		LOGGER.info("Deploying Administrator");
+		LOGGER.info("\n\n"+HIGHLIGHT);
+		LOGGER.info("*Deploying Admin Node");
+		LOGGER.info(HIGHLIGHT);
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
 				.runInstance(configurer.createStartXDResourcesScript(),
 						1));
@@ -203,9 +205,9 @@ public class AWSDeployer implements Deployer {
 		}
 		tagInstance(instance, type);
 		if(isInitialized && instanceChecker.checkContainerProcess(instance,getKeyPair())){
-			LOGGER.info("Container "+ instance.getId() +" started/n" );
+			LOGGER.info("Container "+ instance.getId() +" started\n" );
 		}else{
-			LOGGER.info("Container "+ instance.getId() +" did not start/n" );
+			LOGGER.info("Container "+ instance.getId() +" did not start\n" );
 		}
 		Deployment result = null;
 		try {
@@ -224,7 +226,10 @@ public class AWSDeployer implements Deployer {
 	
 	public List<Deployment> deployContainerServer(String hostName)
 			throws TimeoutException {
-		LOGGER.info("Deploying Container Servers");
+		LOGGER.info(HIGHLIGHT);
+		LOGGER.info("*Deploying Container Nodes*");
+		LOGGER.info(HIGHLIGHT);
+
 		List<Deployment> deploymentList = new ArrayList<Deployment>();
 		int instanceCount = Integer.parseInt(numberOfInstances);
 		Iterator<? extends RunningInstance> iter = instanceProvisioner

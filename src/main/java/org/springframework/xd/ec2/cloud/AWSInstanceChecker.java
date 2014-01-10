@@ -49,7 +49,7 @@ public class AWSInstanceChecker {
 				.getInstance(SocketOpen.class);
 		final Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 10,
 				TimeUnit.SECONDS);
-		LOGGER.info(String.format("Awaiting XD server to start %n"));
+		LOGGER.info(String.format("Awaiting XD server to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(localInstance.getIpAddress(),
 				port))){
 			throw new TimeoutException("timeout waiting for server to start: "
@@ -68,24 +68,24 @@ public class AWSInstanceChecker {
 				.getInstance(SocketOpen.class);
 		Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 1,
 				TimeUnit.SECONDS);
-		LOGGER.info(String.format("Awaiting Redis service to start%n"));
+		LOGGER.info(String.format("Awaiting Redis service to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
 				redisPort)))
 			throw new TimeoutException("timeout waiting for Redis to start: "
 					+ instance.getIpAddress());
-		LOGGER.info(String.format("Redis service started%n"));
+		LOGGER.info(String.format("Redis service started"));
 
-		LOGGER.info(String.format("Awaiting Rabbit service to start%n"));
+		LOGGER.info(String.format("Awaiting Rabbit service to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
 				rabbitPort)))
 			throw new TimeoutException("timeout waiting for Rabbit to start: "
 					+ instance.getIpAddress());
 		LOGGER.info(String.format("Rabbit service started%n"));
 
-		LOGGER.info("*******EC2 Instance and required XD Resources have started.*******\n");
+		LOGGER.info("*******EC2 Instance and required XD Resources have started.*******");
 
-		LOGGER.info(String.format("instance %s ready%n", instance.getId()));
-		LOGGER.info(String.format("ip address: %s%n", instance.getIpAddress()));
+		LOGGER.info(String.format("instance %s ready", instance.getId()));
+		LOGGER.info(String.format("ip address: %s", instance.getIpAddress()));
 		LOGGER.info(String.format("dns name: %s%n", instance.getDnsName()));
 		return instance;
 	}
@@ -96,7 +96,7 @@ public class AWSInstanceChecker {
 				new InstanceStateRunning(client), 180, 10, TimeUnit.SECONDS);
 
 		LOGGER.info("*******Verifying EC2 Instance*******");
-		LOGGER.info(String.format("Awaiting instance to run %n"));
+		LOGGER.info(String.format("Awaiting instance to run"));
 
 		if (!runningTester.apply(instanceParam))
 			throw new TimeoutException("timeout waiting for instance to run: "
@@ -108,7 +108,7 @@ public class AWSInstanceChecker {
 				.getInstance(SocketOpen.class);
 		Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 1,
 				TimeUnit.SECONDS);
-		LOGGER.info(String.format("Awaiting ssh service to start %n"));
+		LOGGER.info(String.format("Awaiting ssh service to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
 				22)))
 			throw new TimeoutException("timeout waiting for ssh to start: "
@@ -147,7 +147,6 @@ public class AWSInstanceChecker {
 		LOGGER.debug(resp.getOutput());
 		LOGGER.debug(resp.getError());
 		LOGGER.debug("ExitStatus is " + resp.getExitStatus());
-
-		return (resp.getOutput().indexOf("-Dxd.container=") > -1);
+		return (resp.getOutput().indexOf("-Dspring.application.name=container") > -1);
 	}
 }

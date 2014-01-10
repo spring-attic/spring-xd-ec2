@@ -49,7 +49,7 @@ public class Ec2Installer {
 	 */
 	private final static Logger LOGGER = LoggerFactory
 			.getLogger(Ec2Installer.class);
-	private final static String HIGHLIGHT = "************************************************************************";
+	public final static String HIGHLIGHT = "************************************************************************";
 
 	@Autowired
 	private transient Banner banner;
@@ -67,6 +67,9 @@ public class Ec2Installer {
 			validateConfiguration(properties);
 			deployer = new AWSDeployer(properties);
 			final List<Deployment> result = deployer.deploy();
+			LOGGER.info("\n\n"+HIGHLIGHT);
+			LOGGER.info("*Installation Complete                                                 *");
+			LOGGER.info("*The following Servers have been deployed to your XD Cluster           *");
 			LOGGER.info(HIGHLIGHT);
 			for (final Deployment instance : result) {
 				if (instance.getType() == InstanceType.SINGLE_NODE) {
@@ -76,17 +79,16 @@ public class Ec2Installer {
 				}
 				if (instance.getType() == InstanceType.ADMIN) {
 					LOGGER.info(String.format(
-							"Admin Node Instance: %s has been created",
+							">Admin Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
 				}
 				if (instance.getType() == InstanceType.NODE) {
 					LOGGER.info(String.format(
-							"Container Node Instance: %s has been created",
+							">>Container Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
 				}
 			}
 			LOGGER.info(HIGHLIGHT);
-			LOGGER.info("\n\nInstallation Complete");
 		} catch (TimeoutException te) {
 			LOGGER.error("Installation FAILED");
 			te.printStackTrace();
