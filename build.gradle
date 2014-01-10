@@ -8,15 +8,12 @@ mainClassName = "org.springframework.xd.ec2.Main"
 
 buildscript {
 	repositories {
-		maven { url "http://repo.springsource.org/plugins-snapshot" }
+		maven { url 'http://repo.spring.io/plugins-snapshot' }
+		maven { url 'http://repo.spring.io/plugins-release' }
 	}
 	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:0.5.0.BUILD-SNAPSHOT")
 		classpath("org.springframework.build.gradle:propdeps-plugin:0.0.3")
-		classpath("org.springframework.build.gradle:docbook-reference-plugin:0.2.7-SNAPSHOT")
-		classpath 'org.asciidoctor:asciidoctor-gradle-plugin:0.4.1'
 		classpath 'org.ajoberstar:gradle-git:0.4.0'
-		classpath 'me.champeau.gradle:gradle-javadoc-hotfix-plugin:0.1'
 	}
 }
 
@@ -39,7 +36,7 @@ applicationDistribution.from(copyConfigs) {
     into "config"
 }
 ext {
-	springVersion = '4.0.0.BUILD-SNAPSHOT'
+	springVersion = '4.0.0.RELEASE'
 	mockitoVersion = '1.8.4'
 	log4jBridgeVersion = '1.7.5'
 	commonsVersion = '3.2'
