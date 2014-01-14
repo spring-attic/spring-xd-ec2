@@ -41,6 +41,18 @@ Running
 
 properties
 ----------
+XD allows a user to change it's behavior by updating environment variables.  Since XD-EC2 allows users to deploy a multi node xd instance it will allow you to set these environment variables on all the nodes.  This is done by adding the XD Environment variables you want updated to the xd-ec2.properties.  
+For example if you  wanted to update the rabbit and amq locations you would add these to the bottom of your xd-ec2.properties file.
+
+```
+mqtt.url=tcp://ec2-54-205-58-170.compute-1.amazonaws.com:1883
+mqtt.default.client.id=xd.mqtt.client.id
+mqtt.username=guest
+mqtt.password=guest
+mqtt.default.topic=xd.mqtt.test
+
+amq.url=tcp://ec2-54-205-58-170.compute-1.amazonaws.com:61616
+```
 
 Using
 ----------
