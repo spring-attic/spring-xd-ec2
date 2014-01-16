@@ -69,6 +69,6 @@ public interface Deployer {
 	 *         not.
 	 * @throws TimeoutException
 	 */
-	public List<Deployment> deployContainerServer(String hostName) throws TimeoutException;
+	public List<Deployment> deployContainerServers(String hostName) throws TimeoutException;
 
 }

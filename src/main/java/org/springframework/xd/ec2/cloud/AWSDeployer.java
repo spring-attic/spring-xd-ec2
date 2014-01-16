@@ -16,6 +16,7 @@
 
 package org.springframework.xd.ec2.cloud;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_PORT_OPEN;
 import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_SCRIPT_COMPLETE;
 import static org.jclouds.scriptbuilder.domain.Statements.exec;
@@ -26,11 +27,16 @@ import java.io.File;
 import java.io.FileReader;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -42,6 +48,7 @@ import org.jclouds.compute.domain.ExecResponse;
 import org.jclouds.compute.options.RunScriptOptions;
 import org.jclouds.domain.Credentials;
 import org.jclouds.domain.LoginCredentials;
+import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.jclouds.http.handlers.BackoffLimitedRetryHandler;
 import org.jclouds.io.payloads.FilePayload;
@@ -51,6 +58,7 @@ import org.jclouds.sshj.SshjSshClient;
 import org.jclouds.sshj.config.SshjSshClientModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StopWatch;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.xd.cloud.Deployer;
 import org.springframework.xd.cloud.Deployment;
@@ -70,22 +78,35 @@ import com.google.inject.Module;
 public class AWSDeployer implements Deployer {
 
 	static final Logger LOGGER = LoggerFactory.getLogger(AWSDeployer.class);
+
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
 
 	private transient String clusterName;
+
 	private transient String awsAccessKey;
+
 	private transient String awsSecretKey;
+
 	private transient String privateKeyFile;
+
 	private transient String multiNode;
+
 	private transient String description;
+
 	private transient String userName;
+
 	private transient String region;
+
 	private transient String numberOfInstances;
+
 	private transient String controlTransport;
+
 	private transient String dataTransport;
 
 	private AWSEC2Client client;
+
 	private ComputeService computeService;
+
 	private AWSInstanceChecker instanceChecker;
 
 	private AWSInstanceConfigurer configurer;
@@ -93,8 +114,7 @@ public class AWSDeployer implements Deployer {
 	private AWSInstanceProvisioner instanceProvisioner;
 
 	public AWSDeployer(Properties properties) {
-		Iterable<Module> modules = ImmutableSet
-				.<Module> of(new SshjSshClientModule());
+		Iterable<Module> modules = ImmutableSet.<Module> of(new SshjSshClientModule());
 		clusterName = properties.getProperty("cluster-name");
 		awsAccessKey = properties.getProperty("aws-access-key");
 		awsSecretKey = properties.getProperty("aws-secret-key");
@@ -107,76 +127,69 @@ public class AWSDeployer implements Deployer {
 		controlTransport = properties.getProperty("xd-control-transport");
 		dataTransport = properties.getProperty("xd-data-transport");
 
-		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
-				.credentials(awsAccessKey, awsSecretKey)
-				// key I created above
-				.modules(modules).overrides(getTimeoutPolicy())
-				.buildView(ComputeServiceContext.class);
+		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2").credentials(awsAccessKey, awsSecretKey)
+		// key I created above
+				.modules(modules).overrides(getTimeoutPolicy()).buildView(ComputeServiceContext.class);
 		computeService = context.getComputeService();
 
-		client = ContextBuilder.newBuilder("aws-ec2")
-				.credentials(awsAccessKey, awsSecretKey)
+		client = ContextBuilder.newBuilder("aws-ec2").credentials(awsAccessKey, awsSecretKey)
 				.buildApi(AWSEC2Client.class);
-		instanceChecker = new AWSInstanceChecker(properties, client,
-				computeService);
+		instanceChecker = new AWSInstanceChecker(properties, client, computeService);
 		instanceProvisioner = new AWSInstanceProvisioner(client, properties);
 		configurer = new AWSInstanceConfigurer(properties);
 		validateURLs(properties);
 	}
 
+	@Override
 	public List<Deployment> deploy() throws TimeoutException {
 
 		ArrayList<Deployment> result = new ArrayList<Deployment>();
 		String script = null;
 		if (getMultiNode().equalsIgnoreCase("false")) {
 			result.add(deploySingleNode(script));
-		} else if (getMultiNode().equalsIgnoreCase("true")) {
+		}
+		else if (getMultiNode().equalsIgnoreCase("true")) {
 			Deployment admin = deployAdminServer(script);
 			result.add(admin);
-			result.addAll(deployContainerServer(admin.getAddress().getHostAddress()));
-		} else {
-			throw new IllegalArgumentException(
-					"multi-node property must either be true or false");
+			result.addAll(deployContainerServers(admin.getAddress().getHostAddress()));
+		}
+		else {
+			throw new IllegalArgumentException("multi-node property must either be true or false");
 		}
 
 		return result;
 	}
 
+	@Override
 	public Deployment deploySingleNode(String script) throws TimeoutException {
 		LOGGER.info("Deploying SingleNode");
-		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
-				.runInstance(configurer.createStartXDResourcesScript(), 1));
+		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner.runInstance(
+				configurer.createStartXDResourcesScript(), 1));
 		instanceChecker.checkServerResources(instance);
 		LOGGER.info("*******Setting up your single XD instance.*******");
-		instance = AWSInstanceProvisioner.findInstanceById(client,
-				instance.getId());
-		return deploySingleServer(
-				configurer.createSingleNodeScript(instance.getDnsName()),
-				instance, InstanceType.SINGLE_NODE);
+		instance = AWSInstanceProvisioner.findInstanceById(client, instance.getId());
+		return deploySingleServer(configurer.createSingleNodeScript(instance.getDnsName()), instance,
+				InstanceType.SINGLE_NODE);
 	}
 
+	@Override
 	public Deployment deployAdminServer(String script) throws TimeoutException {
-		LOGGER.info("\n\n"+HIGHLIGHT);
+		LOGGER.info("\n\n" + HIGHLIGHT);
 		LOGGER.info("*Deploying Admin Node");
 		LOGGER.info(HIGHLIGHT);
-		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
-				.runInstance(configurer.createStartXDResourcesScript(),
-						1));
+		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner.runInstance(
+				configurer.createStartXDResourcesScript(), 1));
 		instanceChecker.checkServerResources(instance);
 		LOGGER.info("*******Setting up your Administrator XD instance.*******");
-		instance = AWSInstanceProvisioner.findInstanceById(client,
-				instance.getId());
-		return deploySingleServer(
-				configurer.createAdminNodeScript(instance.getDnsName(),controlTransport),
-				instance, InstanceType.ADMIN);
+		instance = AWSInstanceProvisioner.findInstanceById(client, instance.getId());
+		return deploySingleServer(configurer.createAdminNodeScript(instance.getDnsName(), controlTransport), instance,
+				InstanceType.ADMIN);
 	}
 
-	private Deployment deploySingleServer(String script,
-			RunningInstance instance, InstanceType type)
+	private Deployment deploySingleServer(String script, RunningInstance instance, InstanceType type)
 			throws TimeoutException {
 		tagInitialization(instance, type);
-		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(),
-				instance.getId());
+		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
 		runCommands(script, instance.getId());
 		tagInstance(instance, type);
 		instanceChecker.checkServerInstance(instance, 9393);
@@ -184,92 +197,120 @@ public class AWSDeployer implements Deployer {
 		try {
 			InetAddress address = InetAddress.getByName(instance.getDnsName());
 			result = new Deployment(address, type, DeploymentStatus.SUCCESS);
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			LOGGER.error(ex.getMessage());
 		}
 		return result;
 	}
-	
-	private Deployment installContainerServer(String script,
-			RunningInstance instance, InstanceType type)
+
+	private Deployment installContainerServer(String script, RunningInstance instance, InstanceType type)
 			throws TimeoutException {
 		tagInitialization(instance, type);
-		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(),
-				instance.getId());
+		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
 		boolean isInitialized = true;
-		try{
-		runCommands(script, instance.getId());
-		}catch(Exception ssre){
+		try {
+			runCommands(script, instance.getId());
+		}
+		catch (Exception ssre) {
 			LOGGER.warn(ssre.getLocalizedMessage());
 			isInitialized = false;
 		}
 		tagInstance(instance, type);
-		if(isInitialized && instanceChecker.checkContainerProcess(instance,getKeyPair())){
-			LOGGER.info("Container "+ instance.getId() +" started\n" );
-		}else{
-			LOGGER.info("Container "+ instance.getId() +" did not start\n" );
+		if (isInitialized && instanceChecker.checkContainerProcess(instance, getKeyPair())) {
+			LOGGER.info("Container " + instance.getId() + " started\n");
+		}
+		else {
+			LOGGER.info("Container " + instance.getId() + " did not start\n");
 		}
 		Deployment result = null;
 		try {
 			InetAddress address = InetAddress.getByName(instance.getDnsName());
-			if(isInitialized){
+			if (isInitialized) {
 				result = new Deployment(address, type, DeploymentStatus.SUCCESS);
-			}else{
-				result = new Deployment(address, type, DeploymentStatus.FAILURE);
-				
 			}
-		} catch (Exception ex) {
+			else {
+				result = new Deployment(address, type, DeploymentStatus.FAILURE);
+
+			}
+		}
+		catch (Exception ex) {
 			LOGGER.error(ex.getMessage());
 		}
 		return result;
 	}
-	
-	public List<Deployment> deployContainerServer(String hostName)
-			throws TimeoutException {
+
+	@Override
+	public List<Deployment> deployContainerServers(final String hostName) throws TimeoutException {
 		LOGGER.info(HIGHLIGHT);
 		LOGGER.info("*Deploying Container Nodes*");
 		LOGGER.info(HIGHLIGHT);
 
-		List<Deployment> deploymentList = new ArrayList<Deployment>();
 		int instanceCount = Integer.parseInt(numberOfInstances);
-		Iterator<? extends RunningInstance> iter = instanceProvisioner
-				.runInstance(configurer.bootstrapXDNodeScript(), instanceCount)
-				.iterator();
-		int currentInstance = 0;
-		while (iter.hasNext()) {
-			RunningInstance instance = iter.next();
-			instanceChecker.checkAWSInstance(instance);
-			LOGGER.info("*******Setting up your Container XD instance.*******");
-			instance = AWSInstanceProvisioner.findInstanceById(client,
-					instance.getId());
-			deploymentList
-					.add(installContainerServer(configurer
-							.createContainerNodeScript(hostName,controlTransport, dataTransport),
-							instance, InstanceType.NODE));
-			Map<String, String> nodeId = new HashMap<String,String>();
-			nodeId.put("Container_Node", String.valueOf(currentInstance));
-			addTags(instance, nodeId);
-			currentInstance++;
+		Reservation<? extends RunningInstance> reservation = instanceProvisioner.runInstance(
+				configurer.bootstrapXDNodeScript(), instanceCount);
+		int i = 0;
+		ExecutorService executorService = Executors.newFixedThreadPool(reservation.size());
+		List<Future<Deployment>> futures = new ArrayList<>();
+		StopWatch outerStopWatch = new StopWatch("Overall");
+		outerStopWatch.start();
+		for (final RunningInstance instance : reservation) {
+			final int currentInstance = i++;
+			Callable<Deployment> task = new Callable<Deployment>() {
+				@Override
+				public Deployment call() throws TimeoutException {
+					StopWatch inner = new StopWatch("instance " + currentInstance);
+					inner.start("checkAWSInstance");
+					instanceChecker.checkAWSInstance(instance);
+					inner.stop();
+					LOGGER.info(String.format("*******Setting up your Container XD instance %d.*******",
+							currentInstance));
+					RunningInstance refreshed = AWSInstanceProvisioner.findInstanceById(client, instance.getId());
+					addTags(refreshed, Collections.singletonMap("Container_Node", "" + currentInstance));
+					inner.start("installContainerServer");
+					Deployment deployment = installContainerServer(
+							configurer.createContainerNodeScript(hostName, controlTransport, dataTransport), refreshed,
+							InstanceType.NODE);
+					inner.stop();
+					LOGGER.debug(inner.prettyPrint());
+					return deployment;
+				}
+			};
+			futures.add(executorService.submit(task));
 		}
-		return deploymentList;
+		try {
+			executorService.shutdown();
+			executorService.awaitTermination(300, SECONDS);
+			executorService.shutdownNow();
+			outerStopWatch.stop();
+			LOGGER.debug(outerStopWatch.prettyPrint());
+			List<Deployment> result = new ArrayList<>();
+			for (Future<Deployment> future : futures) {
+				result.add(future.get(0, SECONDS));
+			}
+			return result;
+		}
+		catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
+		catch (ExecutionException e) {
+			throw new RuntimeException(e);
+		}
+
 	}
 
 	/**
 	 * Executes the XD setup commands on a specified node id.
 	 * 
-	 * @param script
-	 *            JCloud Builder script that initializes XD.
-	 * @param nodeId
-	 *            The node ID of the instance to execute the commands
+	 * @param script JCloud Builder script that initializes XD.
+	 * @param nodeId The node ID of the instance to execute the commands
 	 */
 	public void runCommands(String script, String nodeId) {
 
-		RunScriptOptions options = RunScriptOptions.Builder
-				.blockOnComplete(true).overrideLoginUser("ubuntu")
+		RunScriptOptions options = RunScriptOptions.Builder.blockOnComplete(true).overrideLoginUser("ubuntu")
 				.overrideLoginPrivateKey(getKeyPair());
 		options.runAsRoot(false);
-		ExecResponse resp = computeService.runScriptOnNode(nodeId, script,
-				options);
+		ExecResponse resp = computeService.runScriptOnNode(nodeId, script, options);
 		LOGGER.debug(resp.getOutput());
 		LOGGER.debug(resp.getError());
 		LOGGER.debug("ExitStatus is " + resp.getExitStatus());
@@ -284,14 +325,11 @@ public class AWSDeployer implements Deployer {
 	 */
 	@Deprecated
 	public ExecResponse runCommand(String command, String nodeId) {
-		String script = new ScriptBuilder().addStatement(exec(command)).render(
-				OsFamily.UNIX);
-		RunScriptOptions options = RunScriptOptions.Builder
-				.blockOnComplete(true).overrideLoginUser("ubuntu")
+		String script = new ScriptBuilder().addStatement(exec(command)).render(OsFamily.UNIX);
+		RunScriptOptions options = RunScriptOptions.Builder.blockOnComplete(true).overrideLoginUser("ubuntu")
 				.overrideLoginPrivateKey(getKeyPair());
 		options.runAsRoot(false);
-		ExecResponse resp = computeService.runScriptOnNode(nodeId, script,
-				options);
+		ExecResponse resp = computeService.runScriptOnNode(nodeId, script, options);
 		return resp;
 	}
 
@@ -327,13 +365,16 @@ public class AWSDeployer implements Deployer {
 			while (br.ready()) {
 				result += br.readLine() + "\n";
 			}
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			ex.printStackTrace();
-		} finally {
+		}
+		finally {
 			if (br != null) {
 				try {
 					br.close();
-				} catch (Exception ex) {
+				}
+				catch (Exception ex) {
 					ex.printStackTrace();
 				}
 			}
@@ -347,7 +388,8 @@ public class AWSDeployer implements Deployer {
 		File deployFile = new File("lib/spring-xd-ec2-1.0.jar");
 		if (buildFile.exists()) {
 			result = buildFile;
-		} else if (deployFile.exists()) {
+		}
+		else if (deployFile.exists()) {
 			result = deployFile;
 		}
 
@@ -355,14 +397,12 @@ public class AWSDeployer implements Deployer {
 	}
 
 	private void sshCopy(File file, String host, String nodeId) {
-			final LoginCredentials credential = LoginCredentials
-					.fromCredentials(new Credentials("ubuntu", getPrivateKey()));
-			final com.google.common.net.HostAndPort socket = com.google.common.net.HostAndPort
-					.fromParts(host, 22);
-			final SshjSshClient client = new SshjSshClient(
-					new BackoffLimitedRetryHandler(), socket, credential, 5000);
-			final FilePayload payload = new FilePayload(file);
-			client.put(UBUNTU_HOME + "deploy.jar", payload);
+		final LoginCredentials credential = LoginCredentials
+				.fromCredentials(new Credentials("ubuntu", getPrivateKey()));
+		final com.google.common.net.HostAndPort socket = com.google.common.net.HostAndPort.fromParts(host, 22);
+		final SshjSshClient client = new SshjSshClient(new BackoffLimitedRetryHandler(), socket, credential, 5000);
+		final FilePayload payload = new FilePayload(file);
+		client.put(UBUNTU_HOME + "deploy.jar", payload);
 	}
 
 	private String getPrivateKey() {
@@ -373,13 +413,16 @@ public class AWSDeployer implements Deployer {
 			while (br.ready()) {
 				result += br.readLine() + "\n";
 			}
-		} catch (Exception ex) {
+		}
+		catch (Exception ex) {
 			ex.printStackTrace();
-		} finally {
+		}
+		finally {
 			if (br != null) {
 				try {
 					br.close();
-				} catch (Exception ex) {
+				}
+				catch (Exception ex) {
 					ex.printStackTrace();
 				}
 			}
@@ -400,13 +443,13 @@ public class AWSDeployer implements Deployer {
 		return properties;
 	}
 
-	private void validateURLs(Properties properties){
+	private void validateURLs(Properties properties) {
 		try {
 			configurer.checkURL(properties.getProperty("xd-dist-url"));
-		} catch (HttpClientErrorException httpException) {
-			throw new InvalidXDZipUrlException(
-					"Unable to download the XD Distribution you specified because, \" "
-							+ httpException.getMessage() + "\"");
+		}
+		catch (HttpClientErrorException httpException) {
+			throw new InvalidXDZipUrlException("Unable to download the XD Distribution you specified because, \" "
+					+ httpException.getMessage() + "\"");
 		}
 	}
 
