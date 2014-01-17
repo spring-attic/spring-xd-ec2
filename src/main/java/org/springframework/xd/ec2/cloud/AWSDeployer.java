@@ -65,6 +65,7 @@ import org.springframework.xd.cloud.Deployment;
 import org.springframework.xd.cloud.DeploymentStatus;
 import org.springframework.xd.cloud.InstanceType;
 import org.springframework.xd.cloud.InvalidXDZipUrlException;
+import org.springframework.xd.ec2.Main;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -165,6 +166,7 @@ public class AWSDeployer implements Deployer {
 		LOGGER.info("Deploying SingleNode");
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner.runInstance(
 				configurer.createStartXDResourcesScript(), 1));
+		tagInitialization(instance, InstanceType.SINGLE_NODE);
 		instanceChecker.checkServerResources(instance);
 		LOGGER.info("*******Setting up your single XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client, instance.getId());
@@ -179,6 +181,7 @@ public class AWSDeployer implements Deployer {
 		LOGGER.info(HIGHLIGHT);
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner.runInstance(
 				configurer.createStartXDResourcesScript(), 1));
+		tagInitialization(instance, InstanceType.ADMIN);
 		instanceChecker.checkServerResources(instance);
 		LOGGER.info("*******Setting up your Administrator XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client, instance.getId());
@@ -188,7 +191,6 @@ public class AWSDeployer implements Deployer {
 
 	private Deployment deploySingleServer(String script, RunningInstance instance, InstanceType type)
 			throws TimeoutException {
-		tagInitialization(instance, type);
 		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
 		runCommands(script, instance.getId());
 		tagInstance(instance, type);
@@ -206,7 +208,6 @@ public class AWSDeployer implements Deployer {
 
 	private Deployment installContainerServer(String script, RunningInstance instance, InstanceType type)
 			throws TimeoutException {
-		tagInitialization(instance, type);
 		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
 		boolean isInitialized = true;
 		try {
@@ -261,6 +262,7 @@ public class AWSDeployer implements Deployer {
 				public Deployment call() throws TimeoutException {
 					StopWatch inner = new StopWatch("instance " + currentInstance);
 					inner.start("checkAWSInstance");
+					tagInitialization(instance, InstanceType.NODE);
 					instanceChecker.checkAWSInstance(instance);
 					inner.stop();
 					LOGGER.info(String.format("*******Setting up your Container XD instance %d.*******",
@@ -383,17 +385,8 @@ public class AWSDeployer implements Deployer {
 	}
 
 	private File getLibraryJarLocation() {
-		File result = null;
-		File buildFile = new File("build/libs/spring-xd-ec2-1.0.jar");
-		File deployFile = new File("lib/spring-xd-ec2-1.0.jar");
-		if (buildFile.exists()) {
-			result = buildFile;
-		}
-		else if (deployFile.exists()) {
-			result = deployFile;
-		}
-
-		return result;
+		File buildFile  = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getFile());
+		return buildFile;
 	}
 
 	private void sshCopy(File file, String host, String nodeId) {

@@ -27,6 +27,15 @@ task setupProject {
     outputs.dir config
 }
 
+task scriptFiles {
+        def scripts = file("src/main/scripts/shutdown-xd-ec2")
+        outputs.dir scripts
+}
+
+applicationDistribution.from(scriptFiles) {
+        into "bin"
+}
+
 task copyConfigs(type:Copy, dependsOn: ':setupProject') {
 from 'src/main/resources/xd-ec2.properties'
 into "$buildDir/config"

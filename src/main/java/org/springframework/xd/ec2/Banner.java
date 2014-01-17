@@ -36,10 +36,10 @@ public class Banner implements ApplicationContextAware {
 	private transient ApplicationContext context;
 	private static final Logger LOGGER = LoggerFactory.getLogger(Banner.class);
 
-	public void print() {
+	public void print(String bannerFileName) {
 		BufferedReader stream = null;
 		try {
-			final InputStream inputStream = context.getResource("banner.txt")
+			final InputStream inputStream = context.getResource(bannerFileName)
 					.getInputStream();
 			stream = new BufferedReader(new InputStreamReader(inputStream));
 			while (stream.ready()) {

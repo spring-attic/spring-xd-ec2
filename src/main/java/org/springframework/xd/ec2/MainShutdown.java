@@ -15,8 +15,6 @@
  */
 package org.springframework.xd.ec2;
 
-import java.util.concurrent.TimeoutException;
-
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
@@ -24,7 +22,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  * @author glenn renfro
  * 
  */
-public class Main {
+public class MainShutdown {
 
 	public static void main(String[] args) throws Exception {
 
@@ -34,15 +32,15 @@ public class Main {
 		// shutdown the context along with the VM
 		ctx.registerShutdownHook();
 		ctx.refresh();
-		// Begin Installation
-		Ec2Installer installer = ctx.getBean(Ec2Installer.class);
-		try {
-			installer.install();
-		} catch (TimeoutException te) {
-			te.printStackTrace();
-			System.exit(1);
+		// Shutdown all instances with this cluster name
+		Ec2Maintenance tools = ctx.getBean(Ec2Maintenance.class);
+		String name = null;
+		if (args.length == 2) {
+			if (args[0].equals("--cluster-name")) {
+				name = args[1];
+			}
 		}
-		System.exit(0);
+		tools.shutdown(name);
 	}
 
 }

@@ -16,6 +16,9 @@
 
 package org.springframework.xd.ec2;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +53,13 @@ public class Ec2Installer {
 	private final static Logger LOGGER = LoggerFactory
 			.getLogger(Ec2Installer.class);
 	public final static String HIGHLIGHT = "************************************************************************";
-
+	private static final String AWS_ACCESS_KEY = "aws-access-key";
+	private static final String AWS_SECRET_KEY = "aws-secret-key";
+	private static final String PRIVATE_KEY_FILE = "private-key-file";
+	private static final String CLUSTER_NAME = "cluster-name";
+	
+	
+	
 	@Autowired
 	private transient Banner banner;
 
@@ -62,32 +71,17 @@ public class Ec2Installer {
 
 	public void install() throws TimeoutException, IOException {
 		try {
-			banner.print();
+			banner.print("banner.txt");
 			final Properties properties = getProperties();
 			validateConfiguration(properties);
+			removeArtifacts();
 			deployer = new AWSDeployer(properties);
 			final List<Deployment> result = deployer.deploy();
 			LOGGER.info("\n\n"+HIGHLIGHT);
 			LOGGER.info("*Installation Complete                                                 *");
 			LOGGER.info("*The following Servers have been deployed to your XD Cluster           *");
 			LOGGER.info(HIGHLIGHT);
-			for (final Deployment instance : result) {
-				if (instance.getType() == InstanceType.SINGLE_NODE) {
-					LOGGER.info(String.format(
-							"Single Node Instance: %s has been created",
-							instance.getAddress().getHostName()));
-				}
-				if (instance.getType() == InstanceType.ADMIN) {
-					LOGGER.info(String.format(
-							">Admin Node Instance: %s has been created",
-							instance.getAddress().getHostName()));
-				}
-				if (instance.getType() == InstanceType.NODE) {
-					LOGGER.info(String.format(
-							">>Container Node Instance: %s has been created",
-							instance.getAddress().getHostName()));
-				}
-			}
+			generateArtifacts(result);
 			LOGGER.info(HIGHLIGHT);
 		} catch (TimeoutException te) {
 			LOGGER.error("Installation FAILED");
@@ -105,12 +99,72 @@ public class Ec2Installer {
 			iae.printStackTrace();
 		}
 	}
+	private void removeArtifacts(){
+	    	try{
+	    		
+	    		File file = new File("ec2servers.csv");
+	    		if(!file.exists()){
+	    			return;
+	    		}
+	    		if(file.delete()){
+	    			LOGGER.debug(file.getName() + " is deleted!");
+	    		}else{
+	    			LOGGER.debug(file.getName() + " was failed to be deleted!");
+	    		}
+	 
+	    	}catch(Exception e){
+	    		LOGGER.error(e.getMessage());
+	    	}
+	}
+	private void generateArtifacts(List<Deployment>deployment){
+		try {
+			  
+			File file = new File("ec2servers.csv");
+ 
+			file.createNewFile();
+ 
+			FileWriter fw = new FileWriter(file.getAbsoluteFile());
+			BufferedWriter bw = new BufferedWriter(fw);
+			for (final Deployment instance : deployment) {
+				if (instance.getType() == InstanceType.SINGLE_NODE) {
+					LOGGER.info(String.format(
+							"Single Node Instance: %s has been created",
+							instance.getAddress().getHostName()));
+					bw.write("singleNode,"+instance.getAddress().getHostName()+"\n");
+				}
+				if (instance.getType() == InstanceType.ADMIN) {
+					LOGGER.info(String.format(
+							">Admin Node Instance: %s has been created",
+							instance.getAddress().getHostName()));
+					bw.write("adminNode,"+instance.getAddress().getHostName()+"\n");
 
+				}
+				if (instance.getType() == InstanceType.NODE) {
+					LOGGER.info(String.format(
+							">>Container Node Instance: %s has been created",
+							instance.getAddress().getHostName()));
+					bw.write("containerNode,"+instance.getAddress().getHostName()+"\n");
+
+				}
+			}
+			bw.close();
+ 
+			System.out.println("Done");
+ 
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 	private Properties getProperties() throws IOException {
 		Resource resource = new ClassPathResource("xd-ec2.properties");
 		Properties props = null;
 		try {
 			props = PropertiesLoaderUtils.loadProperties(resource);
+			props.setProperty(AWS_ACCESS_KEY, getAWSProperty(props, AWS_ACCESS_KEY));
+			props.setProperty(AWS_SECRET_KEY, getAWSProperty(props, AWS_SECRET_KEY));
+			props.setProperty(PRIVATE_KEY_FILE, getAWSProperty(props, PRIVATE_KEY_FILE));
+			props.setProperty(CLUSTER_NAME, getAWSProperty(props, CLUSTER_NAME));
+			
 		} catch (IOException ioe) {
 			LOGGER.error("Failed to open xd-ec2.properties file because: "
 					+ ioe.getMessage());
@@ -118,7 +172,20 @@ public class Ec2Installer {
 		}
 		return props;
 	}
+	
+	private String getAWSProperty(Properties props, String propKey){
+		Properties systemProperties = System.getProperties();
 
+		if(systemProperties.containsKey(propKey) && !systemProperties.getProperty(propKey).equals("")){
+			return systemProperties.getProperty(propKey);
+		}
+		if(props.containsKey(propKey) && !props.getProperty(propKey).equals("")){
+			return props.getProperty(propKey);
+		}
+
+		return "";
+	}
+	
 	/**
 	 * Verifies that all properties that the application needs are setup
 	 * properly.
