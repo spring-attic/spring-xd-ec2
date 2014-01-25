@@ -191,7 +191,9 @@ public class AWSDeployer implements Deployer {
 
 	private Deployment deploySingleServer(String script, RunningInstance instance, InstanceType type)
 			throws TimeoutException {
+		LOGGER.info(">>>Copying Configurator to Instance");
 		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
+		LOGGER.info(">>>Setting up and Starting XD");
 		runCommands(script, instance.getId());
 		tagInstance(instance, type);
 		instanceChecker.checkServerInstance(instance, 9393);

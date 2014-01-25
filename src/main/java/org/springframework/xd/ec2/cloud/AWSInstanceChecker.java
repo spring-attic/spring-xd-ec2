@@ -47,7 +47,7 @@ public class AWSInstanceChecker {
 				instance.getId());
 		final SocketOpen socketOpen = computeService.getContext().utils().injector()
 				.getInstance(SocketOpen.class);
-		final Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 10,
+		final Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 1,
 				TimeUnit.SECONDS);
 		LOGGER.info(String.format("Awaiting XD server to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(localInstance.getIpAddress(),
@@ -93,7 +93,7 @@ public class AWSInstanceChecker {
 	public RunningInstance checkAWSInstance(RunningInstance instanceParam)
 			throws TimeoutException {
 		Predicate<RunningInstance> runningTester = retry(
-				new InstanceStateRunning(client), 180, 10, TimeUnit.SECONDS);
+				new InstanceStateRunning(client), 180, 1, TimeUnit.SECONDS);
 
 		LOGGER.info("*******Verifying EC2 Instance*******");
 		LOGGER.info(String.format("Awaiting instance to run"));
