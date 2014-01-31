@@ -111,6 +111,9 @@ public class AWSInstanceProvisioner implements InstanceProvisioner{
 		} else if (machineSize.equalsIgnoreCase(InstanceSize.LARGE.name())) {
 			type = InstanceType.M1_LARGE;
 		}
+		else if (machineSize.equalsIgnoreCase(InstanceSize.XLARGE.name())) {
+			type = InstanceType.M1_XLARGE;
+		}
 
 		return type;
 	}

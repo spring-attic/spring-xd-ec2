@@ -122,7 +122,7 @@ public class AWSDeployer implements Deployer {
 		privateKeyFile = properties.getProperty("private-key-file");
 		multiNode = properties.getProperty("multi-node");
 		description = properties.getProperty("description");
-		userName = properties.getProperty("user_name");
+		userName = properties.getProperty("user-name");
 		region = properties.getProperty("region");
 		numberOfInstances = properties.getProperty("number-nodes");
 		controlTransport = properties.getProperty("xd-control-transport");

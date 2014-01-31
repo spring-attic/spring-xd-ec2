@@ -311,7 +311,24 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			if(((String)entry.getKey()).startsWith("mqtt.")){
 				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
 			}
+			if(((String)entry.getKey()).startsWith("endpoints.")){
+				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+			}
+			if(((String)entry.getKey()).startsWith("XD_JMX_ENABLED")){
+				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+			}
+			if(((String)entry.getKey()).startsWith("server.")){
+				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+			}
+			if(((String)entry.getKey()).startsWith("management.")){
+				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+			}
+			if(((String)entry.getKey()).startsWith("PORT")){
+				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+			}
+			
 
+			
 		}
 		configCommand = configCommand+" --XD_HOME="+getInstalledDirectory() + "/xd";
 		configCommand = configCommand+" --"+RABBIT_HOST+"="+hostName;

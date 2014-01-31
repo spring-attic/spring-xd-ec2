@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
@@ -53,10 +54,6 @@ public class Ec2Installer {
 	private final static Logger LOGGER = LoggerFactory
 			.getLogger(Ec2Installer.class);
 	public final static String HIGHLIGHT = "************************************************************************";
-	private static final String AWS_ACCESS_KEY = "aws-access-key";
-	private static final String AWS_SECRET_KEY = "aws-secret-key";
-	private static final String PRIVATE_KEY_FILE = "private-key-file";
-	private static final String CLUSTER_NAME = "cluster-name";
 	
 	
 	
@@ -66,7 +63,7 @@ public class Ec2Installer {
 	private transient Deployer deployer;
 	public static final String[] REQUIRED_ENTRIES = { "cluster-name",
 			"aws-access-key", "aws-secret-key", "private-key-file",
-			"user_name", "region", "machine-size", "security-group",
+			"user-name", "region", "machine-size", "security-group",
 			"public-key-name", "ami", "multi-node" };
 
 	public void install() throws TimeoutException, IOException {
@@ -81,7 +78,7 @@ public class Ec2Installer {
 			LOGGER.info("*Installation Complete                                                 *");
 			LOGGER.info("*The following Servers have been deployed to your XD Cluster           *");
 			LOGGER.info(HIGHLIGHT);
-			generateArtifacts(result);
+			generateArtifacts(result,properties);
 			LOGGER.info(HIGHLIGHT);
 		} catch (TimeoutException te) {
 			LOGGER.error("Installation FAILED");
@@ -116,7 +113,7 @@ public class Ec2Installer {
 	    		LOGGER.error(e.getMessage());
 	    	}
 	}
-	private void generateArtifacts(List<Deployment>deployment){
+	private void generateArtifacts(List<Deployment>deployment,Properties properties){
 		try {
 			  
 			File file = new File("ec2servers.csv");
@@ -125,6 +122,7 @@ public class Ec2Installer {
  
 			FileWriter fw = new FileWriter(file.getAbsoluteFile());
 			BufferedWriter bw = new BufferedWriter(fw);
+			String port = (properties.getProperty("management.port")!=null)?properties.getProperty("management.port"):properties.getProperty("PORT");
 			for (final Deployment instance : deployment) {
 				if (instance.getType() == InstanceType.SINGLE_NODE) {
 					LOGGER.info(String.format(
@@ -136,20 +134,20 @@ public class Ec2Installer {
 					LOGGER.info(String.format(
 							">Admin Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("adminNode,"+instance.getAddress().getHostName()+"\n");
+					bw.write("adminNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+"\n");
 
 				}
 				if (instance.getType() == InstanceType.NODE) {
 					LOGGER.info(String.format(
 							">>Container Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("containerNode,"+instance.getAddress().getHostName()+"\n");
+					bw.write("containerNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+"\n");
 
 				}
 			}
 			bw.close();
  
-			System.out.println("Done");
+			LOGGER.info("Done");
  
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -160,10 +158,12 @@ public class Ec2Installer {
 		Properties props = null;
 		try {
 			props = PropertiesLoaderUtils.loadProperties(resource);
-			props.setProperty(AWS_ACCESS_KEY, getAWSProperty(props, AWS_ACCESS_KEY));
-			props.setProperty(AWS_SECRET_KEY, getAWSProperty(props, AWS_SECRET_KEY));
-			props.setProperty(PRIVATE_KEY_FILE, getAWSProperty(props, PRIVATE_KEY_FILE));
-			props.setProperty(CLUSTER_NAME, getAWSProperty(props, CLUSTER_NAME));
+			Iterator<Object> iter = props.keySet().iterator();
+			while(iter.hasNext()){
+				String key = (String)iter.next();
+				props.setProperty(key, getAWSProperty(props, key));
+
+			}
 			
 		} catch (IOException ioe) {
 			LOGGER.error("Failed to open xd-ec2.properties file because: "
