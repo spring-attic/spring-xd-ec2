@@ -48,11 +48,10 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private transient String xdDistUrl;
 	private transient String xdRelease;
 	private transient String xdZipCacheUrl;
-	private transient Properties properties; 
+	private transient Properties properties;
 	private static final String RABBIT_HOST = "spring_rabbitmq_host";
 	private static final String REDIS_HOST = "spring_redis_host";
 
-	
 	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
@@ -71,15 +70,16 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	public String createStartXDResourcesScript() {
 		return renderStatement(startXDResourceStatement());
 	}
-	
+
 	/**
 	 * Execute steps necessary to setup a container node for XD.
+	 * 
 	 * @return
 	 */
-	public String bootstrapXDNodeScript(){
+	public String bootstrapXDNodeScript() {
 		return renderStatement(bootstrapNodeStatement());
 	}
-	
+
 	/**
 	 * Generate the command script that will install and setup a single node
 	 * 
@@ -97,7 +97,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @return
 	 */
 	public String createAdminNodeScript(String hostName, String transport) {
-		return renderStatement(deployAdminNodeXDStatement(hostName,transport));
+		return renderStatement(deployAdminNodeXDStatement(hostName, transport));
 	}
 
 	/**
@@ -106,9 +106,12 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return
 	 */
-	public String createContainerNodeScript(String hostName, String controlTransport, String dataTransport) {
-		return renderStatement(deployContainerNodeXDStatement(hostName,controlTransport, dataTransport));
-	}	
+	public String createContainerNodeScript(String hostName,
+			String controlTransport, String dataTransport) {
+		return renderStatement(deployContainerNodeXDStatement(hostName,
+				controlTransport, dataTransport));
+	}
+
 	/**
 	 * Extracts the file's name from the xdDistURL property.
 	 * 
@@ -118,7 +121,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		File file = new File(xdDistUrl);
 		return file.getName();
 	}
-
 
 	/**
 	 * Verifies that the URL is active and returns a 200. If not it will throw
@@ -185,7 +187,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deployAdminNodeXDStatement(String hostName, String transport) {
+	private List<Statement> deployAdminNodeXDStatement(String hostName,
+			String transport) {
 		List<Statement> result = initializeEnvironmentStatements(hostName);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
@@ -193,10 +196,11 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-admin "+getControlTransportString(transport) +" &"));
+		result.add(exec(getBinDirectory() + "xd-admin "
+				+ getControlTransportString(transport) + " &"));
 		return result;
 	}
-	
+
 	/**
 	 * Generates the script that will be executed on the instance Operating
 	 * SYstem. The script that will be generated will: -- retrieve the
@@ -204,10 +208,12 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * configure the distribution e -- start the distribution as an container.
 	 * 
 	 * @param hostName
-	 * @param logConfig the name of the 
+	 * @param logConfig
+	 *            the name of the
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deployContainerNodeXDStatement(String hostName, String controlTransport, String transport) {
+	private List<Statement> deployContainerNodeXDStatement(String hostName,
+			String controlTransport, String transport) {
 		List<Statement> result = initializeEnvironmentStatements(hostName);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		LOGGER.info("Using the following host to obtain XD Distribution: "
@@ -216,28 +222,30 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-container "+getControlTransportString(controlTransport) +" "+getDataTransportString(transport)+" &"));
+		result.add(exec(getBinDirectory() + "xd-container "
+				+ getControlTransportString(controlTransport) + " "
+				+ getDataTransportString(transport) + " &"));
 		return result;
-	}	
+	}
 
-	private String getControlTransportString(String transport){
-		final String BASE_TRANSPORT_PREFIX="--controlTransport ";
+	private String getControlTransportString(String transport) {
+		final String BASE_TRANSPORT_PREFIX = "--controlTransport ";
 		String result = "";
-		if(transport.equalsIgnoreCase(Transports.rabbit.name())){
-			result= BASE_TRANSPORT_PREFIX+Transports.rabbit.name();
+		if (transport.equalsIgnoreCase(Transports.rabbit.name())) {
+			result = BASE_TRANSPORT_PREFIX + Transports.rabbit.name();
 		}
 		return result;
 	}
 
-	private String getDataTransportString(String transport){
-		final String BASE_TRANSPORT_PREFIX="--transport ";
+	private String getDataTransportString(String transport) {
+		final String BASE_TRANSPORT_PREFIX = "--transport ";
 		String result = "";
-		if(transport.equalsIgnoreCase(Transports.rabbit.name())){
-			result= BASE_TRANSPORT_PREFIX+Transports.rabbit.name();
+		if (transport.equalsIgnoreCase(Transports.rabbit.name())) {
+			result = BASE_TRANSPORT_PREFIX + Transports.rabbit.name();
 		}
 		return result;
 	}
-	
+
 	/**
 	 * Generates the statements that will start the resources needed for the XD
 	 * admin.
@@ -262,17 +270,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("ls -al"));
 		return result;
 	}
-	
+
 	private String getInstalledDirectory() {
 		return String.format(UBUNTU_HOME + xdRelease);
 	}
 
 	private String getBinDirectory() {
 		return getInstalledDirectory() + "/xd/bin/";
-	}
-
-	private String getConfigDirectory() {
-		return getInstalledDirectory() + "/xd/config/";
 	}
 
 	private String getDistributionURL() {
@@ -289,84 +293,73 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		}
 		return result;
 	}
-/**
- * Constructs the command script that will add the environment variables to the .bashrc.
- * Also establishes the host environment variable.  In our case we ignore the host the user specfies assuming
- * that the redis and rabbit are hosted on the admin server..
- * @param hostName
- * @return
- */
+
+	/**
+	 * Constructs the command script that will add the environment variables to
+	 * the .bashrc. Also establishes the host environment variable. In our case
+	 * we ignore the host the user specfies assuming that the redis and rabbit
+	 * are hosted on the admin server..
+	 * 
+	 * @param hostName
+	 * @return
+	 */
 	private String constructConfigurationCommand(String hostName) {
 		String configCommand = "java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem  ";
 		String suffix = " > /home/ubuntu/config.txt 2> /home/ubuntu/configError.txt";
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
-		while(iter.hasNext()){
-			Entry<Object,Object>entry = (Entry<Object,Object>)iter.next();
-			if(((String)entry.getKey()).startsWith("spring.")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
+		while (iter.hasNext()) {
+			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
+			String key = (String) entry.getKey();
+			if (key.startsWith("spring.") ||key.startsWith("amq.")
+					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
+					|| key.startsWith("XD_JMX_ENABLED") || key.startsWith("server.")
+					|| key.startsWith("management.") || key.startsWith("PORT")) {
+				configCommand = configCommand.concat(" --"
+						+ ((String) entry.getKey()).replace(".", "_") + "="
+						+ entry.getValue());
 			}
-			if(((String)entry.getKey()).startsWith("amq.")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
-			}
-			if(((String)entry.getKey()).startsWith("mqtt.")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
-			}
-			if(((String)entry.getKey()).startsWith("endpoints.")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
-			}
-			if(((String)entry.getKey()).startsWith("XD_JMX_ENABLED")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
-			}
-			if(((String)entry.getKey()).startsWith("server.")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
-			}
-			if(((String)entry.getKey()).startsWith("management.")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
-			}
-			if(((String)entry.getKey()).startsWith("PORT")){
-				configCommand = configCommand.concat(" --"+((String)entry.getKey()).replace(".","_")+"="+entry.getValue());
-			}
-			
-
-			
 		}
-		configCommand = configCommand+" --XD_HOME="+getInstalledDirectory() + "/xd";
-		configCommand = configCommand+" --"+RABBIT_HOST+"="+hostName;
-		configCommand = configCommand+" --"+REDIS_HOST+"="+hostName;
+		configCommand = configCommand + " --XD_HOME=" + getInstalledDirectory()
+				+ "/xd";
+		configCommand = configCommand + " --" + RABBIT_HOST + "=" + hostName;
+		configCommand = configCommand + " --" + REDIS_HOST + "=" + hostName;
 
 		return configCommand.concat(suffix);
 	}
-	
-/**
- * Adds the statements to the initialization script that setup the environment variables.	
- * Also establishes the host environment variable.  In our case we ignore the host the user specfies assuming
- * that the redis and rabbit are hosted on the admin server..
- */
-   private List<Statement> initializeEnvironmentStatements(String hostName){
-	   List<Statement> result = new ArrayList<Statement>();
+
+	/**
+	 * Adds the statements to the initialization script that setup the
+	 * environment variables. Also establishes the host environment variable. In
+	 * our case we ignore the host the user specfies assuming that the redis and
+	 * rabbit are hosted on the admin server..
+	 */
+	private List<Statement> initializeEnvironmentStatements(String hostName) {
+		List<Statement> result = new ArrayList<Statement>();
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
-		result.add(exec("export "+RABBIT_HOST+"="+hostName));
-		result.add(exec("export "+REDIS_HOST+"="+hostName));
-		while(iter.hasNext()){
-			Entry<Object,Object>entry = (Entry<Object,Object>)iter.next();
+		result.add(exec("export " + RABBIT_HOST + "=" + hostName));
+		result.add(exec("export " + REDIS_HOST + "=" + hostName));
 
-			if(((String)entry.getKey()).startsWith("spring.")){
-				result.add(exec("export "+((String)entry.getKey()).replace(".","_")+"="+entry.getValue()));
-			}
-			if(((String)entry.getKey()).startsWith("amq.")){
-				result.add(exec("export "+((String)entry.getKey()).replace(".","_")+"="+entry.getValue()));
-			}
-			if(((String)entry.getKey()).startsWith("mqtt.")){
-				result.add(exec("export "+((String)entry.getKey()).replace(".","_")+"="+entry.getValue()));
+		while (iter.hasNext()) {
+			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
+			String key = ((String) entry.getKey());
+
+			if (key.startsWith("spring.") || key.startsWith("amq.")
+					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
+					|| key.startsWith("XD_JMX_ENABLED")
+					|| key.startsWith("server.")
+					|| key.startsWith("management.") || key.startsWith("PORT")) {
+				result.add(exec("export " + key.replace(".", "_") + "="
+						+ entry.getValue()));
 			}
 
 		}
-	   
-	   return result;
-   }
-   enum Transports{
-	   redis, rabbit;
-   }
+
+		return result;
+	}
+
+	enum Transports {
+		redis, rabbit;
+	}
 }
