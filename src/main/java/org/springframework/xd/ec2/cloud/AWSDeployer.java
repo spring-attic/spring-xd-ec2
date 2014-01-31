@@ -194,6 +194,11 @@ public class AWSDeployer implements Deployer {
 		LOGGER.info(">>>Copying Configurator to Instance");
 		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(), instance.getId());
 		LOGGER.info(">>>Setting up and Starting XD");
+		try{
+			Thread.sleep(1000);
+		}catch(Exception e){
+			//ignore giving Amazon a chance to catchup with a new jar that is available.
+		}
 		runCommands(script, instance.getId());
 		tagInstance(instance, type);
 		instanceChecker.checkServerInstance(instance, 9393);
