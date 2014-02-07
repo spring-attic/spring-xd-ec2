@@ -122,7 +122,8 @@ public class Ec2Installer {
  
 			FileWriter fw = new FileWriter(file.getAbsoluteFile());
 			BufferedWriter bw = new BufferedWriter(fw);
-			String port = (properties.getProperty("management.port")!=null)?properties.getProperty("management.port"):properties.getProperty("PORT");
+			String port = properties.getProperty("PORT");
+			String jmxPort = properties.getProperty("management.port");
 			for (final Deployment instance : deployment) {
 				if (instance.getType() == InstanceType.SINGLE_NODE) {
 					LOGGER.info(String.format(
@@ -134,14 +135,14 @@ public class Ec2Installer {
 					LOGGER.info(String.format(
 							">Admin Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("adminNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+"\n");
+					bw.write("adminNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+","+jmxPort+"\n");
 
 				}
 				if (instance.getType() == InstanceType.NODE) {
 					LOGGER.info(String.format(
 							">>Container Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("containerNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+"\n");
+					bw.write("containerNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+","+jmxPort+"\n");
 
 				}
 			}
