@@ -129,7 +129,7 @@ public class Ec2Installer {
 					LOGGER.info(String.format(
 							"Single Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("singleNode,"+instance.getAddress().getHostName()+"\n");
+					bw.write("singleNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+","+jmxPort+"\n");
 				}
 				if (instance.getType() == InstanceType.ADMIN) {
 					LOGGER.info(String.format(
