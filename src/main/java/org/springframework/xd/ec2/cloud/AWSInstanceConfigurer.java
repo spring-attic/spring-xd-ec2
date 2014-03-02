@@ -333,7 +333,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * our case we ignore the host the user specfies assuming that the redis and
 	 * rabbit are hosted on the admin server..
 	 */
-	private List<Statement> initializeEnvironmentStatements(String hostName) {
+	public List<Statement> initializeEnvironmentStatements(String hostName) {
 		List<Statement> result = new ArrayList<Statement>();
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 

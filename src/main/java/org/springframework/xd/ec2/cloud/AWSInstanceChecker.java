@@ -1,23 +1,16 @@
 package org.springframework.xd.ec2.cloud;
 
-import static org.jclouds.scriptbuilder.domain.Statements.exec;
 import static org.jclouds.util.Predicates2.retry;
 
-import java.util.ArrayList;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.jclouds.aws.ec2.AWSEC2Client;
+import org.jclouds.aws.ec2.AWSEC2Api;
 import org.jclouds.compute.ComputeService;
-import org.jclouds.compute.domain.ExecResponse;
-import org.jclouds.compute.options.RunScriptOptions;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.jclouds.ec2.predicates.InstanceStateRunning;
 import org.jclouds.predicates.SocketOpen;
-import org.jclouds.scriptbuilder.ScriptBuilder;
-import org.jclouds.scriptbuilder.domain.OsFamily;
-import org.jclouds.scriptbuilder.domain.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,12 +20,12 @@ import com.google.common.net.HostAndPort;
 public class AWSInstanceChecker {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AWSDeployer.class);
-	private AWSEC2Client client;
+	private AWSEC2Api client;
 	private ComputeService computeService;
 	private int redisPort;
 	private int rabbitPort;
 
-	public AWSInstanceChecker(Properties properties, AWSEC2Client client,
+	public AWSInstanceChecker(Properties properties, AWSEC2Api client,
 			ComputeService computeService) {
 		this.client = client;
 		this.computeService = computeService;
@@ -125,28 +118,27 @@ public class AWSInstanceChecker {
 	 * 
 	 * @param instance
 	 *            The running instance you want to examine.
-	 * @param keyPair
-	 *            Your private key .
+	 * @param managment port 
+	 *            the jmx port .
 	 * @return
 	 */
-	public boolean checkContainerProcess(RunningInstance instance, String keyPair) {
+	public boolean checkContainerProcess(RunningInstance instance, int managementPort) {
+		boolean result = true;
+		RunningInstance localInstance = AWSInstanceProvisioner.findInstanceById(client,
+				instance.getId());
+		final SocketOpen socketOpen = computeService.getContext().utils().injector()
+				.getInstance(SocketOpen.class);
+		final Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 1,
+				TimeUnit.SECONDS);
 		LOGGER.info(String.format("Awaiting XD container to start %n"));
-		RunScriptOptions options = RunScriptOptions.Builder
-				.blockOnComplete(true).overrideLoginUser("ubuntu")
-				.overrideLoginPrivateKey(keyPair);
-		options.runAsRoot(false);
-		ArrayList<Statement> statements = new ArrayList<Statement>();
-		statements.add(exec("ps -ef |grep java"));
-		ScriptBuilder builder = new ScriptBuilder();
-		for (Statement statement : statements) {
-			builder.addStatement(statement);
+		if (!socketTester.apply(HostAndPort.fromParts(localInstance.getIpAddress(),
+				managementPort))){
+			result = false;
+			LOGGER.warn("timeout waiting for container to start: "
+					+ localInstance.getIpAddress());
+			return result;
 		}
-		String script = builder.render(OsFamily.UNIX);
-		ExecResponse resp = computeService.runScriptOnNode(instance.getId(),
-				script, options);
-		LOGGER.debug(resp.getOutput());
-		LOGGER.debug(resp.getError());
-		LOGGER.debug("ExitStatus is " + resp.getExitStatus());
-		return (resp.getOutput().indexOf("-Dspring.application.name=container") > -1);
+		LOGGER.info(String.format("Container started%n"));
+		return result;
 	}
 }

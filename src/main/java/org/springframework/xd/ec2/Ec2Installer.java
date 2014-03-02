@@ -38,6 +38,7 @@ import org.springframework.xd.cloud.Deployment;
 import org.springframework.xd.cloud.InstanceSize;
 import org.springframework.xd.cloud.InstanceType;
 import org.springframework.xd.cloud.InvalidXDZipUrlException;
+import org.springframework.xd.cloud.ServerFailStartException;
 import org.springframework.xd.ec2.cloud.AWSDeployer;
 
 /**
@@ -66,7 +67,7 @@ public class Ec2Installer {
 			"user-name", "region", "machine-size", "security-group",
 			"public-key-name", "ami", "multi-node" };
 
-	public void install() throws TimeoutException, IOException {
+	public void install() throws TimeoutException, IOException, ServerFailStartException {
 		try {
 			banner.print("banner.txt");
 			final Properties properties = getProperties();

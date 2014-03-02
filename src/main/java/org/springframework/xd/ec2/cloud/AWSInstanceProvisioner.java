@@ -21,7 +21,7 @@ import static org.jclouds.ec2.options.RunInstancesOptions.Builder.asType;
 import java.util.Properties;
 import java.util.Set;
 
-import org.jclouds.ec2.EC2Client;
+import org.jclouds.aws.ec2.AWSEC2Api;
 import org.jclouds.ec2.domain.InstanceType;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
@@ -45,9 +45,9 @@ public class AWSInstanceProvisioner implements InstanceProvisioner{
 	private String publicKeyName;
 	private String region;
 
-	private EC2Client client;
+	private AWSEC2Api client;
 
-	public AWSInstanceProvisioner(EC2Client client, Properties properties) {
+	public AWSInstanceProvisioner(AWSEC2Api client, Properties properties) {
 		this.client = client;
 		this.ami = properties.getProperty("ami");
 		this.machineSize = properties.getProperty("machine-size");
@@ -70,8 +70,8 @@ public class AWSInstanceProvisioner implements InstanceProvisioner{
 	 */
 	public Reservation<? extends RunningInstance> runInstance(String script,
 			int numberOfInstances) {
-		Reservation<? extends RunningInstance> reservation = client
-				.getInstanceServices().runInstancesInRegion(region, null,
+		Reservation<? extends RunningInstance> reservation = client.getInstanceApi().get().
+				runInstancesInRegion(region, null,
 						ami, // XD Basic Image.
 						1, // minimum instances
 						numberOfInstances, // maximum instances
@@ -92,11 +92,11 @@ public class AWSInstanceProvisioner implements InstanceProvisioner{
 	 *            The id of the instance.
 	 * @return Instance with that instance id.
 	 */
-	public static RunningInstance findInstanceById(EC2Client client,
+	public static RunningInstance findInstanceById(AWSEC2Api client,
 			String instanceId) {
 		// search my account for the instance I just created
-		Set<? extends Reservation<? extends RunningInstance>> reservations = client
-				.getInstanceServices().describeInstancesInRegion(null,
+		Set<? extends Reservation<? extends RunningInstance>> reservations = client.getInstanceApi().get().
+				describeInstancesInRegion(null,
 						instanceId); // last parameter (ids) narrows the
 		// since we refined by instanceId there should only be one instance
 		return Iterables.getOnlyElement(Iterables.getOnlyElement(reservations));

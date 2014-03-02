@@ -8,12 +8,12 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.jclouds.ContextBuilder;
-import org.jclouds.aws.ec2.AWSEC2Client;
+import org.jclouds.aws.ec2.AWSEC2Api;
 import org.jclouds.aws.ec2.domain.AWSRunningInstance;
-import org.jclouds.ec2.domain.IpPermission;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.jclouds.ec2.domain.SecurityGroup;
+import org.jclouds.net.domain.IpPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ public class AWSTools {
 
 	private transient HashSet<String> ipSet;
 
-	private AWSEC2Client client;
+	private AWSEC2Api client;
 
 	public AWSTools(Properties properties) {
 		awsAccessKey = properties.getProperty("aws-access-key");
@@ -39,7 +39,7 @@ public class AWSTools {
 
 		client = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
-				.buildApi(AWSEC2Client.class);
+				.buildApi(AWSEC2Api.class);
 	}
 
 	public String shutdown(String name) {
@@ -47,17 +47,17 @@ public class AWSTools {
 		while (iter.hasNext()) {
 			String id = iter.next();
 			System.out.println(id);
-			client.getInstanceServices().terminateInstancesInRegion(region,
-					id);
+			client.getInstanceApi().get()
+					.terminateInstancesInRegion(region, id);
 		}
 		return null;
 	}
 
 	private List<String> getInstanceIdsByClusterName(String name) {
 		ArrayList<String> instanceList = new ArrayList<String>();
-		client.getInstanceServices();
+
 		Set<? extends Reservation<? extends AWSRunningInstance>> reservations = client
-				.getInstanceServices().describeInstancesInRegion(region);
+				.getInstanceApi().get().describeInstancesInRegion(region);
 		int instanceCount = reservations.size();
 		for (int x = 0; x < instanceCount; x++) {
 			Reservation<? extends AWSRunningInstance> instances = Iterables
@@ -76,8 +76,8 @@ public class AWSTools {
 	}
 
 	public void resetGroupPermissions(String name) {
-		client.getInstanceServices();
-		Set<SecurityGroup> securityGroups = client.getSecurityGroupServices()
+
+		Set<SecurityGroup> securityGroups = client.getSecurityGroupApi().get()
 				.describeSecurityGroupsInRegion(region);
 		Iterator<SecurityGroup> iter = securityGroups.iterator();
 		while (iter.hasNext()) {
@@ -94,15 +94,16 @@ public class AWSTools {
 					IpPermission newPermission = new IpPermission(
 							permission.getIpProtocol(),
 							permission.getFromPort(), permission.getToPort(),
-							permission.getUserIdGroupPairs(),
+							permission.getTenantIdGroupNamePairs(),
 							permission.getGroupIds(), ipSet);
 					permissions.add(newPermission);
-					client.getSecurityGroupServices()
+					client.getSecurityGroupApi().get()
 							.revokeSecurityGroupIngressInRegion(region,
 									group.getId(), permission);
 				}
 
-				client.getSecurityGroupServices()
+				client.getSecurityGroupApi()
+						.get()
 						.authorizeSecurityGroupIngressInRegion(region,
 								group.getId(), permissions);
 			}

@@ -49,7 +49,7 @@ ext {
 	mockitoVersion = '1.8.4'
 	log4jBridgeVersion = '1.7.5'
 	commonsVersion = '3.2'
-	jcloudsVersion = '1.6.0'
+	jcloudsVersion = '1.7.1'
 	logbackVersion = '1.0.13'
     linkHomepage = 'https://github.com/spring-projects/spring-xd-ec2'
     linkCi       = 'https://build.springsource.org/browse/XD'
@@ -70,8 +70,9 @@ configurations {
 dependencies {
     compile "org.slf4j:log4j-over-slf4j:$log4jBridgeVersion"
     compile "commons-collections:commons-collections:$commonsVersion"
-    compile "org.jclouds.provider:aws-ec2:$jcloudsVersion"
-    compile "org.jclouds.driver:jclouds-sshj:$jcloudsVersion"
+//    compile "org.apache.jclouds.provider:aws-ec2:$jcloudsVersion"
+    compile "org.apache.jclouds.driver:jclouds-sshj:$jcloudsVersion"
+    compile "org.apache.jclouds:jclouds-all:$jcloudsVersion"
     compile "org.springframework:spring-core:$springVersion"
     compile "org.springframework:spring-context:$springVersion"
 	compile "org.springframework:spring-web:$springVersion"
