@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.StringTokenizer;
 
 import org.jclouds.scriptbuilder.ScriptBuilder;
 import org.jclouds.scriptbuilder.domain.OsFamily;
@@ -51,6 +50,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private transient Properties properties;
 	private static final String RABBIT_HOST = "spring_rabbitmq_host";
 	private static final String REDIS_HOST = "spring_redis_host";
+	private static final String ZOOKEEPER_HOST = "ZK_CLIENT_CONNECT";
+	private static final String ZOOKEEPER_PORT = "spring_zookeeper_port";
 
 	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
@@ -67,8 +68,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * Creates the bash script that will start the resources needed for the XD
 	 * Admin
 	 */
-	public String createStartXDResourcesScript() {
-		return renderStatement(startXDResourceStatement());
+	public String createStartXDResourcesScript(boolean standAlone) {
+		return renderStatement(startXDResourceStatement(standAlone));
 	}
 
 	/**
@@ -167,13 +168,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @return the script that will used to initialize the application.
 	 */
 	private List<Statement> deploySingleNodeXDStatement(String hostName) {
-		List<Statement> result = initializeEnvironmentStatements(hostName);
+		List<Statement> result = initializeEnvironmentStatements(hostName, true);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
-		result.add(exec(constructConfigurationCommand(hostName)));
+		result.add(exec(constructConfigurationCommand(hostName,true)));
 		result.add(exec(getBinDirectory() + "xd-singlenode &"));
 		return result;
 	}
@@ -189,13 +190,14 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 */
 	private List<Statement> deployAdminNodeXDStatement(String hostName,
 			String transport) {
-		List<Statement> result = initializeEnvironmentStatements(hostName);
+		List<Statement> result = initializeEnvironmentStatements(hostName,
+				false);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
-		result.add(exec(constructConfigurationCommand(hostName)));
+		result.add(exec(constructConfigurationCommand(hostName,false)));
 		result.add(exec(getBinDirectory() + "xd-admin "
 				+ getControlTransportString(transport) + " &"));
 		return result;
@@ -214,14 +216,15 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 */
 	private List<Statement> deployContainerNodeXDStatement(String hostName,
 			String controlTransport, String transport) {
-		List<Statement> result = initializeEnvironmentStatements(hostName);
+		List<Statement> result = initializeEnvironmentStatements(hostName,
+				false);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
-		result.add(exec(constructConfigurationCommand(hostName)));
+		result.add(exec(constructConfigurationCommand(hostName, false)));
 		result.add(exec(getBinDirectory() + "xd-container "
 				+ getControlTransportString(controlTransport) + " "
 				+ getDataTransportString(transport) + " &"));
@@ -252,10 +255,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * 
 	 * @return a listing of statements used to start resources needed for XD.
 	 */
-	private List<Statement> startXDResourceStatement() {
+	private List<Statement> startXDResourceStatement(boolean standAlone) {
 		ArrayList<Statement> result = new ArrayList<Statement>();
 		result.add(exec("/etc/init.d/redis-server start"));
 		result.add(exec("/etc/init.d/rabbitmq-server start"));
+		if (!standAlone) {
+			result.add(exec("/home/ubuntu/startZooKeeper.sh"));
+		}
 		return result;
 	}
 
@@ -303,16 +309,18 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return
 	 */
-	private String constructConfigurationCommand(String hostName) {
+	private String constructConfigurationCommand(String hostName,
+			boolean isStandAlone) {
 		String configCommand = "java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem  ";
 		String suffix = " > /home/ubuntu/config.txt 2> /home/ubuntu/configError.txt";
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 		while (iter.hasNext()) {
 			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
 			String key = (String) entry.getKey();
-			if (key.startsWith("spring.") ||key.startsWith("amq.")
+			if (key.startsWith("spring.") || key.startsWith("amq.")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_JMX_ENABLED") || key.startsWith("server.")
+					|| key.startsWith("XD_JMX_ENABLED")
+					|| key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
 				configCommand = configCommand.concat(" --"
 						+ ((String) entry.getKey()).replace(".", "_") + "="
@@ -323,7 +331,14 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 				+ "/xd";
 		configCommand = configCommand + " --" + RABBIT_HOST + "=" + hostName;
 		configCommand = configCommand + " --" + REDIS_HOST + "=" + hostName;
-
+		if (!isStandAlone) {
+			String zookeeperPort = "2181";
+			if (properties.contains(ZOOKEEPER_PORT)) {
+				zookeeperPort = properties.getProperty(ZOOKEEPER_PORT);
+			}
+			configCommand = configCommand + " --" + ZOOKEEPER_HOST + "="
+					+ hostName + ":" + zookeeperPort;
+		}
 		return configCommand.concat(suffix);
 	}
 
@@ -333,14 +348,22 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * our case we ignore the host the user specfies assuming that the redis and
 	 * rabbit are hosted on the admin server..
 	 */
-	public List<Statement> initializeEnvironmentStatements(String hostName) {
+	public List<Statement> initializeEnvironmentStatements(String hostName,
+			boolean isStandAlone) {
 		List<Statement> result = new ArrayList<Statement>();
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		result.add(exec("export " + RABBIT_HOST + "=" + hostName));
 		result.add(exec("export " + REDIS_HOST + "=" + hostName));
-
+		String zookeeperPort = "2181";
+		if (!isStandAlone) {
+			if (properties.contains(ZOOKEEPER_PORT)) {
+				zookeeperPort = properties.getProperty(ZOOKEEPER_PORT);
+			}
+			result.add(exec("export " + ZOOKEEPER_HOST + "=" + hostName + ":"
+					+ zookeeperPort));
+		}
 		while (iter.hasNext()) {
 			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
 			String key = ((String) entry.getKey());
