@@ -132,7 +132,7 @@ public class AWSInstanceChecker {
 	 *            the jmx port .
 	 * @return
 	 */
-	public boolean checkContainerProcess(RunningInstance instance, int managementPort) {
+	public boolean checkContainerProcess(RunningInstance instance, int managementPort) throws TimeoutException {
 		boolean result = true;
 		RunningInstance localInstance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
