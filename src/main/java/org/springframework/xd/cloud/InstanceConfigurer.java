@@ -27,5 +27,5 @@ public interface InstanceConfigurer {
 	 * 
 	 * @return
 	 */
-	public String createStartXDResourcesScript(boolean standAlone);
+	public String createStartXDResourcesScript();
 }

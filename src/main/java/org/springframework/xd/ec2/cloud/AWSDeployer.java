@@ -150,6 +150,9 @@ public class AWSDeployer implements Deployer {
 				computeService);
 		instanceProvisioner = new AWSInstanceProvisioner(client, properties);
 		configurer = new AWSInstanceConfigurer(properties);
+		if(getMultiNode().equalsIgnoreCase("true")){
+			configurer.setUseEmbeddedZookeeper(false);
+		}
 		validateURLs(properties);
 	}
 
@@ -177,9 +180,9 @@ public class AWSDeployer implements Deployer {
 	public Deployment deploySingleNode(String script) throws TimeoutException, ServerFailStartException {
 		LOGGER.info("Deploying SingleNode");
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
-				.runInstance(configurer.createStartXDResourcesScript(true), 1));
+				.runInstance(configurer.createStartXDResourcesScript(), 1));
 		tagInitialization(instance, InstanceType.SINGLE_NODE);
-		instanceChecker.checkServerResources(instance,true);
+		instanceChecker.checkServerResources(instance,configurer.isUseEmbeddedZookeeper());
 		LOGGER.info("*******Setting up your single XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
@@ -194,7 +197,7 @@ public class AWSDeployer implements Deployer {
 		LOGGER.info("*Deploying Admin Node");
 		LOGGER.info(HIGHLIGHT);
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
-				.runInstance(configurer.createStartXDResourcesScript(false), 1));
+				.runInstance(configurer.createStartXDResourcesScript(), 1));
 		tagInitialization(instance, InstanceType.ADMIN);
 		instanceChecker.checkServerResources(instance, false);
 		LOGGER.info("*******Setting up your Administrator XD instance.*******");

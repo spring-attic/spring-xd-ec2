@@ -54,7 +54,8 @@ public class AWSInstanceChecker {
 
 	}
 
-	public RunningInstance checkServerResources(RunningInstance instanceParam, boolean standAlone)
+	public RunningInstance checkServerResources(RunningInstance instanceParam, boolean isEmbeddedZookeeper
+			)
 			throws TimeoutException {
 		RunningInstance instance = checkAWSInstance(instanceParam);
 		LOGGER.info("*******Verifying Required XD Resources.*******");
@@ -76,7 +77,7 @@ public class AWSInstanceChecker {
 			throw new TimeoutException("timeout waiting for Rabbit to start: "
 					+ instance.getIpAddress());
 		LOGGER.info(String.format("Rabbit service started"));
-		if (!standAlone) {
+		if (!isEmbeddedZookeeper) {
 			LOGGER.info(String.format("Awaiting ZooKeeper service to start"));
 			if (!socketTester.apply(HostAndPort.fromParts(
 					instance.getIpAddress(), zookeeperPort)))

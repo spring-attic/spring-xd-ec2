@@ -47,11 +47,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private transient String xdDistUrl;
 	private transient String xdRelease;
 	private transient String xdZipCacheUrl;
+	private transient boolean useEmbeddedZookeeper = true;
 	private transient Properties properties;
 	private static final String RABBIT_HOST = "spring_rabbitmq_host";
 	private static final String REDIS_HOST = "spring_redis_host";
-	private static final String ZOOKEEPER_HOST = "ZK_CLIENT_CONNECT";
-	private static final String ZOOKEEPER_PORT = "spring_zookeeper_port";
+	private static final String ZK_CLIENT_CONNECT = "ZK_CLIENT_CONNECT";
+	
+	private static final String USE_EMBEDDED_ZOOKEEPER = "use_embedded_zookeeper";
 
 	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
@@ -61,6 +63,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		xdDistUrl = properties.getProperty("xd-dist-url");
 		xdZipCacheUrl = properties.getProperty("xd-zip-cache-url");
 		xdRelease = properties.getProperty("xd-release");
+		if(properties.containsKey(USE_EMBEDDED_ZOOKEEPER)){
+			useEmbeddedZookeeper = Boolean.parseBoolean(properties.getProperty(USE_EMBEDDED_ZOOKEEPER));
+		}
 		this.properties = properties;
 	}
 
@@ -68,8 +73,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * Creates the bash script that will start the resources needed for the XD
 	 * Admin
 	 */
-	public String createStartXDResourcesScript(boolean standAlone) {
-		return renderStatement(startXDResourceStatement(standAlone));
+	public String createStartXDResourcesScript() {
+		return renderStatement(startXDResourceStatement());
 	}
 
 	/**
@@ -102,7 +107,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	}
 
 	/**
-	 * Generate the command script that will install and setup a container ndoe
+	 * Generate the command script that will install and setup a container node
 	 * 
 	 * @param hostName
 	 * @return
@@ -174,7 +179,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
-		result.add(exec(constructConfigurationCommand(hostName,true)));
+		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-singlenode &"));
 		return result;
 	}
@@ -197,7 +202,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
-		result.add(exec(constructConfigurationCommand(hostName,false)));
+		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-admin "
 				+ getControlTransportString(transport) + " &"));
 		return result;
@@ -224,7 +229,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
-		result.add(exec(constructConfigurationCommand(hostName, false)));
+		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-container "
 				+ getControlTransportString(controlTransport) + " "
 				+ getDataTransportString(transport) + " &"));
@@ -255,11 +260,11 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * 
 	 * @return a listing of statements used to start resources needed for XD.
 	 */
-	private List<Statement> startXDResourceStatement(boolean standAlone) {
+	private List<Statement> startXDResourceStatement() {
 		ArrayList<Statement> result = new ArrayList<Statement>();
 		result.add(exec("/etc/init.d/redis-server start"));
 		result.add(exec("/etc/init.d/rabbitmq-server start"));
-		if (!standAlone) {
+		if (!useEmbeddedZookeeper) {
 			result.add(exec("/home/ubuntu/startZooKeeper.sh"));
 		}
 		return result;
@@ -309,8 +314,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return
 	 */
-	private String constructConfigurationCommand(String hostName,
-			boolean isStandAlone) {
+	private String constructConfigurationCommand(String hostName) {
 		String configCommand = "java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem  ";
 		String suffix = " > /home/ubuntu/config.txt 2> /home/ubuntu/configError.txt";
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
@@ -331,13 +335,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 				+ "/xd";
 		configCommand = configCommand + " --" + RABBIT_HOST + "=" + hostName;
 		configCommand = configCommand + " --" + REDIS_HOST + "=" + hostName;
-		if (!isStandAlone) {
-			String zookeeperPort = "2181";
-			if (properties.contains(ZOOKEEPER_PORT)) {
-				zookeeperPort = properties.getProperty(ZOOKEEPER_PORT);
-			}
-			configCommand = configCommand + " --" + ZOOKEEPER_HOST + "="
-					+ hostName + ":" + zookeeperPort;
+		if (!useEmbeddedZookeeper) {
+			configCommand = configCommand + " --" + ZK_CLIENT_CONNECT + "="
+					+ hostName + ":2181";
 		}
 		return configCommand.concat(suffix);
 	}
@@ -356,13 +356,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		result.add(exec("export " + RABBIT_HOST + "=" + hostName));
 		result.add(exec("export " + REDIS_HOST + "=" + hostName));
-		String zookeeperPort = "2181";
-		if (!isStandAlone) {
-			if (properties.contains(ZOOKEEPER_PORT)) {
-				zookeeperPort = properties.getProperty(ZOOKEEPER_PORT);
-			}
-			result.add(exec("export " + ZOOKEEPER_HOST + "=" + hostName + ":"
-					+ zookeeperPort));
+		if (!useEmbeddedZookeeper) {
+			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + hostName + ":2181"));
 		}
 		while (iter.hasNext()) {
 			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
@@ -384,5 +379,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	enum Transports {
 		redis, rabbit;
+	}
+
+	public boolean isUseEmbeddedZookeeper() {
+		return useEmbeddedZookeeper;
+	}
+
+	public void setUseEmbeddedZookeeper(boolean useEmbeddedZookeeper) {
+		this.useEmbeddedZookeeper = useEmbeddedZookeeper;
 	}
 }
