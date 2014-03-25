@@ -24,6 +24,7 @@ public class AWSInstanceChecker {
 	private ComputeService computeService;
 	private int redisPort;
 	private int rabbitPort;
+	private int zookeeperPort;
 
 	public AWSInstanceChecker(Properties properties, AWSEC2Api client,
 			ComputeService computeService) {
@@ -31,6 +32,7 @@ public class AWSInstanceChecker {
 		this.computeService = computeService;
 		redisPort = Integer.valueOf(properties.getProperty("spring.redis.port"));
 		rabbitPort = Integer.valueOf(properties.getProperty("spring.rabbitmq.port"));
+		zookeeperPort = Integer.valueOf(properties.getProperty("spring.zookeeper.port"));
 
 	}
 
@@ -52,7 +54,8 @@ public class AWSInstanceChecker {
 
 	}
 
-	public RunningInstance checkServerResources(RunningInstance instanceParam)
+	public RunningInstance checkServerResources(RunningInstance instanceParam, boolean isEmbeddedZookeeper
+			)
 			throws TimeoutException {
 		RunningInstance instance = checkAWSInstance(instanceParam);
 		LOGGER.info("*******Verifying Required XD Resources.*******");
@@ -73,8 +76,16 @@ public class AWSInstanceChecker {
 				rabbitPort)))
 			throw new TimeoutException("timeout waiting for Rabbit to start: "
 					+ instance.getIpAddress());
-		LOGGER.info(String.format("Rabbit service started%n"));
-
+		LOGGER.info(String.format("Rabbit service started"));
+		if (!isEmbeddedZookeeper) {
+			LOGGER.info(String.format("Awaiting ZooKeeper service to start"));
+			if (!socketTester.apply(HostAndPort.fromParts(
+					instance.getIpAddress(), zookeeperPort)))
+				throw new TimeoutException(
+						"timeout waiting for zookeeper to start: "
+								+ instance.getIpAddress());
+			LOGGER.info(String.format("Zoo Keeper service started%n"));
+		}
 		LOGGER.info("*******EC2 Instance and required XD Resources have started.*******");
 
 		LOGGER.info(String.format("instance %s ready", instance.getId()));
@@ -122,7 +133,7 @@ public class AWSInstanceChecker {
 	 *            the jmx port .
 	 * @return
 	 */
-	public boolean checkContainerProcess(RunningInstance instance, int managementPort) {
+	public boolean checkContainerProcess(RunningInstance instance, int managementPort) throws TimeoutException {
 		boolean result = true;
 		RunningInstance localInstance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());

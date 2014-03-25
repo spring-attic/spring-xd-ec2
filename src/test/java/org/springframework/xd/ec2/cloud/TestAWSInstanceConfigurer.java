@@ -64,7 +64,7 @@ public class TestAWSInstanceConfigurer {
 	 */
 	@Test
 	public void testGetSingleNodeStartupScript() {
-		String result = configurer.createStartXDResourcesScript();
+		String result = configurer.createStartXDResourcesScript(false);
 		assertTrue("Was not able to find where XD_HOME is set",
 				result.indexOf(XD_HOME_VALUE) > -1);
 		assertTrue("Was not able to find where Rabbit startup",

@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.StringTokenizer;
 
 import org.jclouds.scriptbuilder.ScriptBuilder;
 import org.jclouds.scriptbuilder.domain.OsFamily;
@@ -48,9 +47,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private transient String xdDistUrl;
 	private transient String xdRelease;
 	private transient String xdZipCacheUrl;
+	private transient boolean useEmbeddedZookeeper = true;
 	private transient Properties properties;
 	private static final String RABBIT_HOST = "spring_rabbitmq_host";
 	private static final String REDIS_HOST = "spring_redis_host";
+	private static final String ZK_CLIENT_CONNECT = "ZK_CLIENT_CONNECT";
+	
+	private static final String USE_EMBEDDED_ZOOKEEPER = "use_embedded_zookeeper";
 
 	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
@@ -60,6 +63,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		xdDistUrl = properties.getProperty("xd-dist-url");
 		xdZipCacheUrl = properties.getProperty("xd-zip-cache-url");
 		xdRelease = properties.getProperty("xd-release");
+		if(properties.containsKey(USE_EMBEDDED_ZOOKEEPER)){
+			useEmbeddedZookeeper = Boolean.parseBoolean(properties.getProperty(USE_EMBEDDED_ZOOKEEPER));
+		}
 		this.properties = properties;
 	}
 
@@ -101,7 +107,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	}
 
 	/**
-	 * Generate the command script that will install and setup a container ndoe
+	 * Generate the command script that will install and setup a container node
 	 * 
 	 * @param hostName
 	 * @return
@@ -167,7 +173,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @return the script that will used to initialize the application.
 	 */
 	private List<Statement> deploySingleNodeXDStatement(String hostName) {
-		List<Statement> result = initializeEnvironmentStatements(hostName);
+		List<Statement> result = initializeEnvironmentStatements(hostName, true);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
@@ -189,7 +195,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 */
 	private List<Statement> deployAdminNodeXDStatement(String hostName,
 			String transport) {
-		List<Statement> result = initializeEnvironmentStatements(hostName);
+		List<Statement> result = initializeEnvironmentStatements(hostName,
+				false);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
@@ -214,7 +221,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 */
 	private List<Statement> deployContainerNodeXDStatement(String hostName,
 			String controlTransport, String transport) {
-		List<Statement> result = initializeEnvironmentStatements(hostName);
+		List<Statement> result = initializeEnvironmentStatements(hostName,
+				false);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ getDistributionURL());
@@ -256,6 +264,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		ArrayList<Statement> result = new ArrayList<Statement>();
 		result.add(exec("/etc/init.d/redis-server start"));
 		result.add(exec("/etc/init.d/rabbitmq-server start"));
+		if (!useEmbeddedZookeeper) {
+			result.add(exec("/home/ubuntu/startZooKeeper.sh"));
+		}
 		return result;
 	}
 
@@ -310,9 +321,10 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		while (iter.hasNext()) {
 			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
 			String key = (String) entry.getKey();
-			if (key.startsWith("spring.") ||key.startsWith("amq.")
+			if (key.startsWith("spring.") || key.startsWith("amq.")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_JMX_ENABLED") || key.startsWith("server.")
+					|| key.startsWith("XD_JMX_ENABLED")
+					|| key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
 				configCommand = configCommand.concat(" --"
 						+ ((String) entry.getKey()).replace(".", "_") + "="
@@ -323,7 +335,10 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 				+ "/xd";
 		configCommand = configCommand + " --" + RABBIT_HOST + "=" + hostName;
 		configCommand = configCommand + " --" + REDIS_HOST + "=" + hostName;
-
+		if (!useEmbeddedZookeeper) {
+			configCommand = configCommand + " --" + ZK_CLIENT_CONNECT + "="
+					+ hostName + ":2181";
+		}
 		return configCommand.concat(suffix);
 	}
 
@@ -333,14 +348,17 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * our case we ignore the host the user specfies assuming that the redis and
 	 * rabbit are hosted on the admin server..
 	 */
-	public List<Statement> initializeEnvironmentStatements(String hostName) {
+	public List<Statement> initializeEnvironmentStatements(String hostName,
+			boolean isStandAlone) {
 		List<Statement> result = new ArrayList<Statement>();
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		result.add(exec("export " + RABBIT_HOST + "=" + hostName));
 		result.add(exec("export " + REDIS_HOST + "=" + hostName));
-
+		if (!useEmbeddedZookeeper) {
+			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + hostName + ":2181"));
+		}
 		while (iter.hasNext()) {
 			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
 			String key = ((String) entry.getKey());
@@ -361,5 +379,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	enum Transports {
 		redis, rabbit;
+	}
+
+	public boolean isUseEmbeddedZookeeper() {
+		return useEmbeddedZookeeper;
+	}
+
+	public void setUseEmbeddedZookeeper(boolean useEmbeddedZookeeper) {
+		this.useEmbeddedZookeeper = useEmbeddedZookeeper;
 	}
 }

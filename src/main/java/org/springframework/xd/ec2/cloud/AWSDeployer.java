@@ -117,7 +117,8 @@ public class AWSDeployer implements Deployer {
 
 	private AWSInstanceProvisioner instanceProvisioner;
 	
-
+	final int RETRY_COUNT = 3;
+	
 
 	public AWSDeployer(Properties properties) {
 		Iterable<Module> modules = ImmutableSet
@@ -149,6 +150,9 @@ public class AWSDeployer implements Deployer {
 				computeService);
 		instanceProvisioner = new AWSInstanceProvisioner(client, properties);
 		configurer = new AWSInstanceConfigurer(properties);
+		if(getMultiNode().equalsIgnoreCase("true")){
+			configurer.setUseEmbeddedZookeeper(false);
+		}
 		validateURLs(properties);
 	}
 
@@ -178,7 +182,7 @@ public class AWSDeployer implements Deployer {
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
 				.runInstance(configurer.createStartXDResourcesScript(), 1));
 		tagInitialization(instance, InstanceType.SINGLE_NODE);
-		instanceChecker.checkServerResources(instance);
+		instanceChecker.checkServerResources(instance,configurer.isUseEmbeddedZookeeper());
 		LOGGER.info("*******Setting up your single XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
@@ -195,7 +199,7 @@ public class AWSDeployer implements Deployer {
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
 				.runInstance(configurer.createStartXDResourcesScript(), 1));
 		tagInitialization(instance, InstanceType.ADMIN);
-		instanceChecker.checkServerResources(instance);
+		instanceChecker.checkServerResources(instance, false);
 		LOGGER.info("*******Setting up your Administrator XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
@@ -230,7 +234,6 @@ public class AWSDeployer implements Deployer {
 
 	private void setupServer(String script, RunningInstance instance,
 			InstanceType type) throws ServerFailStartException {
-		final int RETRY_COUNT = 3;
 		boolean success = false;
 		for (int retries = 0; retries < RETRY_COUNT && !success; retries++) {
 			runCommands(script, instance.getId());
@@ -253,21 +256,37 @@ public class AWSDeployer implements Deployer {
 			throws TimeoutException {
 		sshCopy(this.getLibraryJarLocation(), instance.getDnsName(),
 				instance.getId());
-		boolean isInitialized = true;
-		try {
-			runCommands(script, instance.getId());
-		} catch (Exception ssre) {
-			LOGGER.warn(ssre.getLocalizedMessage());
-			isInitialized = false;
+		boolean isInitialized = false;
+		for (int retries = 0; retries < RETRY_COUNT && !isInitialized; retries++) {
+			boolean commandsHaveRun = false;
+			try {
+				runCommands(script, instance.getId());
+				commandsHaveRun = true;
+			} catch (Exception ssre) {
+				LOGGER.warn(ssre.getLocalizedMessage());
+				commandsHaveRun = false;
+			}
+			tagInstance(instance, type);
+			try {
+				if (commandsHaveRun
+						&& instanceChecker.checkContainerProcess(instance,
+								managementPort)) {
+					isInitialized = true;
+				} else {
+					LOGGER.warn("Failure to setup container.  Retry " + retries
+							+ " of " + RETRY_COUNT);
+				}
+			} catch (TimeoutException te) {
+				LOGGER.warn("Failure to setup container because of timeout.  Retry " + retries
+						+ " of " + RETRY_COUNT);
+			}
 		}
-		tagInstance(instance, type);
-		if (isInitialized
-				&& instanceChecker
-						.checkContainerProcess(instance, managementPort)) {
+		if (isInitialized) {
 			LOGGER.info("Container " + instance.getId() + " started\n");
 		} else {
 			LOGGER.info("Container " + instance.getId() + " did not start\n");
 		}
+
 		Deployment result = null;
 		try {
 			InetAddress address = InetAddress.getByName(instance.getDnsName());
@@ -332,7 +351,7 @@ public class AWSDeployer implements Deployer {
 		}
 		try {
 			executorService.shutdown();
-			executorService.awaitTermination(300, SECONDS);
+			executorService.awaitTermination(((RETRY_COUNT+1)*300)+5, SECONDS);
 			executorService.shutdownNow();
 			outerStopWatch.stop();
 			LOGGER.debug(outerStopWatch.prettyPrint());
