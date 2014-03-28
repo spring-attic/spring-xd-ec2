@@ -52,7 +52,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private static final String RABBIT_HOST = "spring_rabbitmq_host";
 	private static final String REDIS_HOST = "spring_redis_host";
 	private static final String ZK_CLIENT_CONNECT = "ZK_CLIENT_CONNECT";
-	
+
 	private static final String USE_EMBEDDED_ZOOKEEPER = "use_embedded_zookeeper";
 
 	static final Logger LOGGER = LoggerFactory
@@ -63,8 +63,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		xdDistUrl = properties.getProperty("xd-dist-url");
 		xdZipCacheUrl = properties.getProperty("xd-zip-cache-url");
 		xdRelease = properties.getProperty("xd-release");
-		if(properties.containsKey(USE_EMBEDDED_ZOOKEEPER)){
-			useEmbeddedZookeeper = Boolean.parseBoolean(properties.getProperty(USE_EMBEDDED_ZOOKEEPER));
+		if (properties.containsKey(USE_EMBEDDED_ZOOKEEPER)) {
+			useEmbeddedZookeeper = Boolean.parseBoolean(properties
+					.getProperty(USE_EMBEDDED_ZOOKEEPER));
 		}
 		this.properties = properties;
 	}
@@ -236,20 +237,22 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return result;
 	}
 
+
 	private String getControlTransportString(String transport) {
 		final String BASE_TRANSPORT_PREFIX = "--controlTransport ";
 		String result = "";
-		if (transport.equalsIgnoreCase(Transports.rabbit.name())) {
-			result = BASE_TRANSPORT_PREFIX + Transports.rabbit.name();
+		if (transport != null && transport.length() > 0) {
+			result = BASE_TRANSPORT_PREFIX + transport;
 		}
 		return result;
 	}
 
+
 	private String getDataTransportString(String transport) {
 		final String BASE_TRANSPORT_PREFIX = "--transport ";
 		String result = "";
-		if (transport.equalsIgnoreCase(Transports.rabbit.name())) {
-			result = BASE_TRANSPORT_PREFIX + Transports.rabbit.name();
+		if (transport != null && transport.length() != 0) {
+			result = BASE_TRANSPORT_PREFIX + transport;
 		}
 		return result;
 	}
@@ -357,7 +360,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("export " + RABBIT_HOST + "=" + hostName));
 		result.add(exec("export " + REDIS_HOST + "=" + hostName));
 		if (!useEmbeddedZookeeper) {
-			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + hostName + ":2181"));
+			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + hostName
+					+ ":2181"));
 		}
 		while (iter.hasNext()) {
 			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
@@ -375,10 +379,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		}
 
 		return result;
-	}
-
-	enum Transports {
-		redis, rabbit;
 	}
 
 	public boolean isUseEmbeddedZookeeper() {
