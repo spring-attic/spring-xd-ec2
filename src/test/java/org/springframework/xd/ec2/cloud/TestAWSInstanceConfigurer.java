@@ -94,7 +94,7 @@ public class TestAWSInstanceConfigurer {
 	 */
 	@Test
 	public void testDeployContainerApplication() {
-		String result = configurer.createContainerNodeScript("MYHOST","redis","redis");
+		String result = configurer.createContainerNodeScript("MYHOST","redis");
 		assertTrue("Was not able to find the rabbit port configuration.",result.indexOf(RABBIT_CONFIG)>-1);
 		assertTrue("Was not able to find the redis port configuration.",result.indexOf(REDIS_CONFIG)>-1);
 
