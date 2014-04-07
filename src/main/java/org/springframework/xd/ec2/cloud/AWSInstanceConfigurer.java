@@ -103,8 +103,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return
 	 */
-	public String createAdminNodeScript(String hostName, String transport) {
-		return renderStatement(deployAdminNodeXDStatement(hostName, transport));
+	public String createAdminNodeScript(String hostName) {
+		return renderStatement(deployAdminNodeXDStatement(hostName));
 	}
 
 	/**
@@ -114,9 +114,9 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @return
 	 */
 	public String createContainerNodeScript(String hostName,
-			String controlTransport, String dataTransport) {
+			String transport) {
 		return renderStatement(deployContainerNodeXDStatement(hostName,
-				controlTransport, dataTransport));
+				transport));
 	}
 
 	/**
@@ -194,8 +194,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deployAdminNodeXDStatement(String hostName,
-			String transport) {
+	private List<Statement> deployAdminNodeXDStatement(String hostName) {
 		List<Statement> result = initializeEnvironmentStatements(hostName,
 				false);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
@@ -204,8 +203,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-admin "
-				+ getControlTransportString(transport) + " &"));
+		result.add(exec(getBinDirectory() + "xd-admin &"));
 		return result;
 	}
 
@@ -221,7 +219,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @return the script that will used to initialize the application.
 	 */
 	private List<Statement> deployContainerNodeXDStatement(String hostName,
-			String controlTransport, String transport) {
+			 String transport) {
 		List<Statement> result = initializeEnvironmentStatements(hostName,
 				false);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
@@ -232,23 +230,11 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-container "
-				+ getControlTransportString(controlTransport) + " "
-				+ getDataTransportString(transport) + " &"));
+				+ getTransportString(transport) + " &"));
 		return result;
 	}
 
-
-	private String getControlTransportString(String transport) {
-		final String BASE_TRANSPORT_PREFIX = "--controlTransport ";
-		String result = "";
-		if (transport != null && transport.length() > 0) {
-			result = BASE_TRANSPORT_PREFIX + transport;
-		}
-		return result;
-	}
-
-
-	private String getDataTransportString(String transport) {
+	private String getTransportString(String transport) {
 		final String BASE_TRANSPORT_PREFIX = "--transport ";
 		String result = "";
 		if (transport != null && transport.length() != 0) {

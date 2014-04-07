@@ -101,9 +101,7 @@ public class AWSDeployer implements Deployer {
 
 	private transient String numberOfInstances;
 
-	private transient String controlTransport;
-
-	private transient String dataTransport;
+	private transient String transport;
 	
 	private transient int managementPort;
 
@@ -132,8 +130,7 @@ public class AWSDeployer implements Deployer {
 		userName = properties.getProperty("user-name");
 		region = properties.getProperty("region");
 		numberOfInstances = properties.getProperty("number-nodes");
-		controlTransport = properties.getProperty("xd-control-transport");
-		dataTransport = properties.getProperty("xd-data-transport");
+		transport = properties.getProperty("xd-transport");
 		managementPort = Integer.parseInt(properties.getProperty("management.port"));
 
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
@@ -204,7 +201,7 @@ public class AWSDeployer implements Deployer {
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
 		return deploySingleServer(configurer.createAdminNodeScript(
-				instance.getDnsName(), controlTransport), instance,
+				instance.getDnsName()), instance,
 				InstanceType.ADMIN);
 	}
 
@@ -340,7 +337,7 @@ public class AWSDeployer implements Deployer {
 					inner.start("installContainerServer");
 					Deployment deployment = installContainerServer(
 							configurer.createContainerNodeScript(hostName,
-									controlTransport, dataTransport),
+									transport),
 							refreshed, InstanceType.NODE);
 					inner.stop();
 					LOGGER.debug(inner.prettyPrint());
