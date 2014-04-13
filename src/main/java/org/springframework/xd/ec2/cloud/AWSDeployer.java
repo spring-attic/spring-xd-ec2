@@ -101,8 +101,6 @@ public class AWSDeployer implements Deployer {
 
 	private transient String numberOfInstances;
 
-	private transient String transport;
-	
 	private transient int managementPort;
 
 	private AWSEC2Api client;
@@ -130,7 +128,6 @@ public class AWSDeployer implements Deployer {
 		userName = properties.getProperty("user-name");
 		region = properties.getProperty("region");
 		numberOfInstances = properties.getProperty("number-nodes");
-		transport = properties.getProperty("xd-transport");
 		managementPort = Integer.parseInt(properties.getProperty("management.port"));
 
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
@@ -336,8 +333,7 @@ public class AWSDeployer implements Deployer {
 									+ currentInstance));
 					inner.start("installContainerServer");
 					Deployment deployment = installContainerServer(
-							configurer.createContainerNodeScript(hostName,
-									transport),
+							configurer.createContainerNodeScript(hostName),
 							refreshed, InstanceType.NODE);
 					inner.stop();
 					LOGGER.debug(inner.prettyPrint());
