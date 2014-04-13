@@ -113,10 +113,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return
 	 */
-	public String createContainerNodeScript(String hostName,
-			String transport) {
-		return renderStatement(deployContainerNodeXDStatement(hostName,
-				transport));
+	public String createContainerNodeScript(String hostName) {
+		return renderStatement(deployContainerNodeXDStatement(hostName));
 	}
 
 	/**
@@ -218,8 +216,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 *            the name of the
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deployContainerNodeXDStatement(String hostName,
-			 String transport) {
+	private List<Statement> deployContainerNodeXDStatement(String hostName) {
 		List<Statement> result = initializeEnvironmentStatements(hostName,
 				false);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
@@ -229,17 +226,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-container "
-				+ getTransportString(transport) + " &"));
-		return result;
-	}
-
-	private String getTransportString(String transport) {
-		final String BASE_TRANSPORT_PREFIX = "--transport ";
-		String result = "";
-		if (transport != null && transport.length() != 0) {
-			result = BASE_TRANSPORT_PREFIX + transport;
-		}
+		result.add(exec(getBinDirectory() + "xd-container &"));
 		return result;
 	}
 
@@ -312,7 +299,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			String key = (String) entry.getKey();
 			if (key.startsWith("spring.") || key.startsWith("amq.")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_JMX_ENABLED")
+					|| key.startsWith("XD_")
 					|| key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
 				configCommand = configCommand.concat(" --"
@@ -355,7 +342,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 			if (key.startsWith("spring.") || key.startsWith("amq.")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_JMX_ENABLED")
+					|| key.startsWith("XD_")
 					|| key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
 				result.add(exec("export " + key.replace(".", "_") + "="
