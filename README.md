@@ -54,6 +54,19 @@ mqtt.default.topic=xd.mqtt.test
 amq.url=tcp://ec2-54-205-58-170.compute-1.amazonaws.com:61616
 ```
 
+Setting Up Job Repository
+----------
+Unlike singlenode deloyments, clusters (1 admin with 1+ containers) require that a job RDBMS datasource be specified for the admin server.
+Through XD-EC2 this can be done by setting up the datasource properties in you xd-ec2.properties file.
+For example:
+```
+#Database settings
+spring.datasource.url=jdbc:mysql://xdjobasd.adsfadsa.us-east-1.rds.amazonaws.com:3306/xdjob
+spring.datasource.username=myxdjob
+spring.datasource.password=mypassword
+spring.datasource.driverClassName=com.mysql.jdbc.Driver
+```
+
 Using
 ----------
 
