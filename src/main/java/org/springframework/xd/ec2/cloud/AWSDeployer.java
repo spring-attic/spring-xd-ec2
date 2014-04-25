@@ -113,6 +113,8 @@ public class AWSDeployer implements Deployer {
 
 	private AWSInstanceProvisioner instanceProvisioner;
 	
+	private String hadoopVersion;
+	
 	final int RETRY_COUNT = 3;
 	
 
@@ -128,6 +130,7 @@ public class AWSDeployer implements Deployer {
 		userName = properties.getProperty("user-name");
 		region = properties.getProperty("region");
 		numberOfInstances = properties.getProperty("number-nodes");
+		hadoopVersion = properties.getProperty("XD_HADOOP_DISTRO"); 
 		managementPort = Integer.parseInt(properties.getProperty("management.port"));
 
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
@@ -181,7 +184,7 @@ public class AWSDeployer implements Deployer {
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
 		return deploySingleServer(
-				configurer.createSingleNodeScript(instance.getDnsName()),
+				configurer.createSingleNodeScript(instance.getDnsName(), hadoopVersion),
 				instance, InstanceType.SINGLE_NODE);
 	}
 
@@ -333,7 +336,7 @@ public class AWSDeployer implements Deployer {
 									+ currentInstance));
 					inner.start("installContainerServer");
 					Deployment deployment = installContainerServer(
-							configurer.createContainerNodeScript(hostName),
+							configurer.createContainerNodeScript(hostName, hadoopVersion),
 							refreshed, InstanceType.NODE);
 					inner.stop();
 					LOGGER.debug(inner.prettyPrint());

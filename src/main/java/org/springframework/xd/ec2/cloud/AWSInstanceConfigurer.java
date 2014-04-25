@@ -46,7 +46,6 @@ import org.springframework.xd.cloud.InstanceConfigurer;
 public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private transient String xdDistUrl;
 	private transient String xdRelease;
-	private transient String xdZipCacheUrl;
 	private transient boolean useEmbeddedZookeeper = true;
 	private transient Properties properties;
 	private static final String RABBIT_HOST = "spring_rabbitmq_host";
@@ -61,7 +60,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	public AWSInstanceConfigurer(Properties properties) {
 		xdDistUrl = properties.getProperty("xd-dist-url");
-		xdZipCacheUrl = properties.getProperty("xd-zip-cache-url");
 		xdRelease = properties.getProperty("xd-release");
 		if (properties.containsKey(USE_EMBEDDED_ZOOKEEPER)) {
 			useEmbeddedZookeeper = Boolean.parseBoolean(properties
@@ -90,17 +88,18 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	/**
 	 * Generate the command script that will install and setup a single node
 	 * 
-	 * @param hostName
+	 * @param hostName The host where the single node will be deployed
+	 * @param hadoopVersion The version of hadoop this instance will execute against.
 	 * @return
 	 */
-	public String createSingleNodeScript(String hostName) {
-		return renderStatement(deploySingleNodeXDStatement(hostName));
+	public String createSingleNodeScript(String hostName, String hadoopVersion) {
+		return renderStatement(deploySingleNodeXDStatement(hostName, hadoopVersion));
 	}
 
 	/**
 	 * Generate the command script that will install and setup an administrator
 	 * 
-	 * @param hostName
+	 * @param hostName the host where the admin server will be deployed.
 	 * @return
 	 */
 	public String createAdminNodeScript(String hostName) {
@@ -110,11 +109,12 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	/**
 	 * Generate the command script that will install and setup a container node
 	 * 
-	 * @param hostName
+	 * @param hostName the host where this container will be deployed
+	 * @param hadoopVersion The version of hadoop this instance will execute against.
 	 * @return
 	 */
-	public String createContainerNodeScript(String hostName) {
-		return renderStatement(deployContainerNodeXDStatement(hostName));
+	public String createContainerNodeScript(String hostName, String hadoopVersion) {
+		return renderStatement(deployContainerNodeXDStatement(hostName, hadoopVersion));
 	}
 
 	/**
@@ -171,15 +171,15 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @param hostName
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deploySingleNodeXDStatement(String hostName) {
+	private List<Statement> deploySingleNodeXDStatement(String hostName, String hadoopVersion) {
 		List<Statement> result = initializeEnvironmentStatements(hostName, true);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
-				+ getDistributionURL());
-		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
+				+ xdDistUrl);
+		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-singlenode &"));
+		result.add(exec(getBinDirectory() + "xd-singlenode "+getHadoopVersion(hadoopVersion)+" &"));
 		return result;
 	}
 
@@ -196,8 +196,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		List<Statement> result = initializeEnvironmentStatements(hostName,
 				false);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
-				+ getDistributionURL());
-		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
+				+ xdDistUrl);
+		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
@@ -216,20 +216,30 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 *            the name of the
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deployContainerNodeXDStatement(String hostName) {
+	private List<Statement> deployContainerNodeXDStatement(String hostName, String hadoopVersion) {
 		List<Statement> result = initializeEnvironmentStatements(hostName,
 				false);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		LOGGER.info("Using the following host to obtain XD Distribution: "
-				+ getDistributionURL());
-		result.add(exec("wget -P " + UBUNTU_HOME + " " + getDistributionURL()));
+				+ xdDistUrl);
+		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-container &"));
+		result.add(exec(getBinDirectory() + "xd-container "+getHadoopVersion(hadoopVersion)+" &"));
 		return result;
 	}
 
+	private String getHadoopVersion(String hadoopVersion) {
+		final String BASE_HADOOP_VERSION_PREFIX = "--hadoopDistro ";
+		String result = "";
+		if (hadoopVersion != null && hadoopVersion.length() != 0) {
+			result = BASE_HADOOP_VERSION_PREFIX + hadoopVersion;
+		}
+		return result;
+	}
+	
+	
 	/**
 	 * Generates the statements that will start the resources needed for the XD
 	 * admin.
@@ -266,20 +276,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return getInstalledDirectory() + "/xd/bin/";
 	}
 
-	private String getDistributionURL() {
-		// check to see if the distribution is cached on S3 before pulling from
-		// server
-		String result = xdDistUrl;
-		try {
-			String cacheLocation = xdZipCacheUrl + "/" + getFileName();
-			checkURL(cacheLocation);
-			result = cacheLocation;
-		} catch (Exception exception) {
-			// in this case we are catching the exception, only to state that
-			// the file is not in the cache.
-		}
-		return result;
-	}
 
 	/**
 	 * Constructs the command script that will add the environment variables to
