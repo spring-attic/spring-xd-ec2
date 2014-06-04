@@ -13,20 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.xd.ec2;
 
-import java.util.concurrent.TimeoutException;
+package org.springframework.xd.ec2;
 
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.xd.cloud.DeployTimeoutException;
 
 /**
+ * Provisions the resources, installs the software needed for XD.  This includes starting the XD cluster.
  * @author glenn renfro
- * 
  */
 public class Main {
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 
 		@SuppressWarnings("resource")
 		AbstractApplicationContext ctx = new ClassPathXmlApplicationContext(
@@ -38,7 +38,8 @@ public class Main {
 		Ec2Installer installer = ctx.getBean(Ec2Installer.class);
 		try {
 			installer.install();
-		} catch (TimeoutException te) {
+		}
+		catch (DeployTimeoutException te) {
 			te.printStackTrace();
 			System.exit(1);
 		}

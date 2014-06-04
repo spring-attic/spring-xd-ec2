@@ -67,6 +67,15 @@ spring.datasource.password=mypassword
 spring.datasource.driverClassName=com.mysql.jdbc.Driver
 ```
 
+Container Specific Properties
+----------
+XD Supports XD.CONTAINER.GROUPS such that you can assign modules to a specific container group.  To support this feature XD-EC2 allows the user to create container specific property settings.  This is done by prefixing any property value with XD<digit>. .  The digit represents the container you want the property to be associated.  For example:  If you wanted Container 0 to belong to group0 and Container 1 to belong to groupA you would add the following to your XD-EC2.properties file.
+```
+#Container Specific settings
+XD1.XD.CONTAINER.GROUPS=GROUPA
+XD0.XD.CONTAINER.GROUPS=GROUP0
+```
+
 Using
 ----------
 

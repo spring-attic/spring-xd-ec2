@@ -32,6 +32,8 @@ import org.jclouds.scriptbuilder.domain.OsFamily;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.xd.cloud.InstanceConfigurer;
 
@@ -39,26 +41,35 @@ import org.springframework.xd.cloud.InstanceConfigurer;
  * Creates the scripts that will be used to install, bootstrap and configure XD
  * on an AWS instance.
  * 
- * @author glenn renfro
+ * @author Glenn Renfro
  * 
  */
 
 public class AWSInstanceConfigurer implements InstanceConfigurer {
-	private transient String xdDistUrl;
-	private transient String xdRelease;
-	private transient boolean useEmbeddedZookeeper = true;
-	private transient Properties properties;
+
+	private String xdDistUrl;
+
+	private String xdRelease;
+
+	private boolean useEmbeddedZookeeper = true;
+
+	private Properties properties;
+
 	private static final String RABBIT_HOST = "spring_rabbitmq_host";
+
 	private static final String REDIS_HOST = "spring_redis_host";
+
 	private static final String ZK_CLIENT_CONNECT = "ZK_CLIENT_CONNECT";
 
 	private static final String USE_EMBEDDED_ZOOKEEPER = "use_embedded_zookeeper";
 
 	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
+
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
 
 	public AWSInstanceConfigurer(Properties properties) {
+		Assert.notNull(properties, "properties can not be null");
 		xdDistUrl = properties.getProperty("xd-dist-url");
 		xdRelease = properties.getProperty("xd-release");
 		if (properties.containsKey(USE_EMBEDDED_ZOOKEEPER)) {
@@ -72,6 +83,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * Creates the bash script that will start the resources needed for the XD
 	 * Admin
 	 */
+	@Override
 	public String createStartXDResourcesScript() {
 		return renderStatement(startXDResourceStatement());
 	}
@@ -90,19 +102,21 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * 
 	 * @param hostName The host where the single node will be deployed
 	 * @param hadoopVersion The version of hadoop this instance will execute against.
-	 * @return
+	 * @return String containing singlenode install script
 	 */
 	public String createSingleNodeScript(String hostName, String hadoopVersion) {
+		Assert.hasText(hostName, "hostName can not be empty nor null");
+		Assert.hasText(hadoopVersion, "hadoopVersion can not be empty nor null");
 		return renderStatement(deploySingleNodeXDStatement(hostName, hadoopVersion));
 	}
 
 	/**
 	 * Generate the command script that will install and setup an administrator
-	 * 
 	 * @param hostName the host where the admin server will be deployed.
-	 * @return
+	 * @return String containing the admin nod install script
 	 */
 	public String createAdminNodeScript(String hostName) {
+		Assert.hasText(hostName, "hostName can not be empty nor null");
 		return renderStatement(deployAdminNodeXDStatement(hostName));
 	}
 
@@ -111,10 +125,13 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * 
 	 * @param hostName the host where this container will be deployed
 	 * @param hadoopVersion The version of hadoop this instance will execute against.
-	 * @return
+	 * @param instanceIndex The index associated with the container.
+	 * @return String containing the container installation script.
 	 */
-	public String createContainerNodeScript(String hostName, String hadoopVersion) {
-		return renderStatement(deployContainerNodeXDStatement(hostName, hadoopVersion));
+	public String createContainerNodeScript(String hostName, String hadoopVersion, int instanceIndex) {
+		Assert.hasText(hostName, "hostName can not be empty nor null");
+		Assert.hasText(hadoopVersion, "hadoopVersion can not be empty nor null");
+		return renderStatement(deployContainerNodeXDStatement(hostName, hadoopVersion, instanceIndex));
 	}
 
 	/**
@@ -130,13 +147,28 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	/**
 	 * Verifies that the URL is active and returns a 200. If not it will throw
 	 * an exception.
-	 * 
-	 * @param url
-	 *            The URL to verify.
+	 * @param url The URL to verify.
 	 */
 	public void checkURL(String url) {
+		Assert.hasText(url, "url cannot be null nor empty");
 		RestTemplate template = new RestTemplate();
 		template.headForHeaders(url);
+	}
+
+	/**
+	 * Retrieves a boolean stating whether the tool is setting up a embedded zookeeper (singlenode)
+	 * @return true if using embedded zookeeper.  Else false.
+	 */
+	public boolean isUseEmbeddedZookeeper() {
+		return useEmbeddedZookeeper;
+	}
+
+	/**
+	 * Establishes if the XD instance is going to use an embedded zookeeper (singlenode)
+	 * @param useEmbeddedZookeeper True if xd instance will use embedded zookeeper.  Else false.
+	 */
+	public void setUseEmbeddedZookeeper(boolean useEmbeddedZookeeper) {
+		this.useEmbeddedZookeeper = useEmbeddedZookeeper;
 	}
 
 	/**
@@ -172,14 +204,14 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @return the script that will used to initialize the application.
 	 */
 	private List<Statement> deploySingleNodeXDStatement(String hostName, String hadoopVersion) {
-		List<Statement> result = initializeEnvironmentStatements(hostName, true);
+		List<Statement> result = initializeEnvironmentStatements(hostName);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ xdDistUrl);
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-singlenode "+getHadoopVersion(hadoopVersion)+" &"));
+		result.add(exec(getBinDirectory() + "xd-singlenode " + getHadoopVersion(hadoopVersion) + " &"));
 		return result;
 	}
 
@@ -193,8 +225,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * @return the script that will used to initialize the application.
 	 */
 	private List<Statement> deployAdminNodeXDStatement(String hostName) {
-		List<Statement> result = initializeEnvironmentStatements(hostName,
-				false);
+		List<Statement> result = initializeEnvironmentStatements(hostName);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ xdDistUrl);
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
@@ -211,22 +242,22 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * distribution the user requested -- install distribution on the OS. --
 	 * configure the distribution e -- start the distribution as an container.
 	 * 
-	 * @param hostName
-	 * @param logConfig
-	 *            the name of the
+	 * @param hostName the host of the admin server
+	 * @param hadoopVersion the hadoop version that the container will use to load the correct libs.
+	 * @param instanceIndex identifes which index specific environment variables will be added to this instance.
 	 * @return the script that will used to initialize the application.
 	 */
-	private List<Statement> deployContainerNodeXDStatement(String hostName, String hadoopVersion) {
-		List<Statement> result = initializeEnvironmentStatements(hostName,
-				false);
+	private List<Statement> deployContainerNodeXDStatement(String hostName, String hadoopVersion, int instanceIndex) {
+
+		List<Statement> result = initializeEnvironmentStatements(hostName, instanceIndex);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ xdDistUrl);
 		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
 		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
-		result.add(exec(constructConfigurationCommand(hostName)));
-		result.add(exec(getBinDirectory() + "xd-container "+getHadoopVersion(hadoopVersion)+" &"));
+		result.add(exec(constructConfigurationCommand(hostName, instanceIndex)));
+		result.add(exec(getBinDirectory() + "xd-container " + getHadoopVersion(hadoopVersion) + " &"));
 		return result;
 	}
 
@@ -238,8 +269,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		}
 		return result;
 	}
-	
-	
+
+
 	/**
 	 * Generates the statements that will start the resources needed for the XD
 	 * admin.
@@ -276,33 +307,61 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return getInstalledDirectory() + "/xd/bin/";
 	}
 
+	/**
+	 * Constructs the command script that will add the environment variables to
+	 * the .bashrc. Also establishes the host environment variable. In our case
+	 * we ignore the host the user specfies assuming that the redis and rabbit
+	 * are hosted on the admin server. 
+	 * @param hostName The host where the admin server is deployed
+	 * @return The statement that will be used to initialize the environment in the .bashrc.
+	 */
+	private String constructConfigurationCommand(String hostName) {
+		return constructConfigurationCommand(hostName, null);
+
+	}
 
 	/**
 	 * Constructs the command script that will add the environment variables to
 	 * the .bashrc. Also establishes the host environment variable. In our case
 	 * we ignore the host the user specfies assuming that the redis and rabbit
-	 * are hosted on the admin server..
-	 * 
-	 * @param hostName
-	 * @return
+	 * are hosted on the admin server. 
+	 * @param hostName The host where the admin server is deployed
+	 * @param containerIndex the index that will be used to identify if a specific property 
+	 * should be added to a container's environment.  If null, container specific entries will not be searched.
+	 * @return The statement that will be used to initialize the environment in the .bashrc.
 	 */
-	private String constructConfigurationCommand(String hostName) {
-		String configCommand = "java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem  ";
+	private String constructConfigurationCommand(String hostName,
+			Integer containerIndex) {
+		String configCommand = getBaseConfigurationCommand(hostName);
 		String suffix = " > /home/ubuntu/config.txt 2> /home/ubuntu/configError.txt";
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 		while (iter.hasNext()) {
-			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
+			Entry<Object, Object> entry = iter.next();
 			String key = (String) entry.getKey();
+			boolean isValidKey = false;
+
 			if (key.startsWith("spring.") || key.startsWith("amq.")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_")
-					|| key.startsWith("server.")
+					|| key.startsWith("XD_") || key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
+				isValidKey = true;
+			}
+			else if (containerIndex != null
+					&& key.startsWith("XD" + containerIndex + ".")) {
+				key = key.substring(key.indexOf(".") + 1);
+				isValidKey = true;
+			}
+			if (isValidKey) {
 				configCommand = configCommand.concat(" --"
-						+ ((String) entry.getKey()).replace(".", "_") + "="
+						+ key.replace(".", "_") + "="
 						+ entry.getValue());
 			}
 		}
+		return configCommand.concat(suffix);
+	}
+
+	private String getBaseConfigurationCommand(String hostName) {
+		String configCommand = "java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem  ";
 		configCommand = configCommand + " --XD_HOME=" + getInstalledDirectory()
 				+ "/xd";
 		configCommand = configCommand + " --" + RABBIT_HOST + "=" + hostName;
@@ -311,20 +370,59 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			configCommand = configCommand + " --" + ZK_CLIENT_CONNECT + "="
 					+ hostName + ":2181";
 		}
-		return configCommand.concat(suffix);
+		return configCommand;
 	}
 
 	/**
 	 * Adds the statements to the initialization script that setup the
 	 * environment variables. Also establishes the host environment variable. In
 	 * our case we ignore the host the user specfies assuming that the redis and
-	 * rabbit are hosted on the admin server..
+	 * rabbit are hosted on the admin server.
+	 * @param hostName the host where the admin is deployed
 	 */
-	public List<Statement> initializeEnvironmentStatements(String hostName,
-			boolean isStandAlone) {
-		List<Statement> result = new ArrayList<Statement>();
+	private List<Statement> initializeEnvironmentStatements(String hostName) {
+		return initializeEnvironmentStatements(hostName, null);
+	}
+
+	/**
+	 * Adds the statements to the initialization script that setup the
+	 * environment variables. Also establishes the host environment variable. In
+	 * our case we ignore the host the user specfies assuming that the redis and
+	 * rabbit are hosted on the admin server.
+	 * @param hostName the host where the admin is deployed
+	 * @param containerIndex the index that will be used to identify if a specific property 
+	 * should be added to a container's environment.  If null, container specific entries will not be searched.
+	 */
+	private List<Statement> initializeEnvironmentStatements(String hostName,
+			Integer containerIndex) {
+		List<Statement> result = getBaseEnvironmentList(hostName);
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 
+		while (iter.hasNext()) {
+			boolean isValidKey = false;
+			Entry<Object, Object> entry = iter.next();
+			String key = (String) entry.getKey();
+			if (key.startsWith("spring.") || key.startsWith("amq.")
+					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
+					|| key.startsWith("XD_") || key.startsWith("server.")
+					|| key.startsWith("management.") || key.startsWith("PORT")) {
+				isValidKey = true;
+			}
+			else if (containerIndex != null
+					&& key.startsWith("XD" + containerIndex + ".")) {
+				key = key.substring(key.indexOf(".") + 1);
+				isValidKey = true;
+			}
+			if (isValidKey) {
+				result.add(exec("export " + key.replace(".", "_") + "="
+						+ entry.getValue()));
+			}
+		}
+		return result;
+	}
+
+	private List<Statement> getBaseEnvironmentList(String hostName) {
+		List<Statement> result = new ArrayList<Statement>();
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		result.add(exec("export " + RABBIT_HOST + "=" + hostName));
 		result.add(exec("export " + REDIS_HOST + "=" + hostName));
@@ -332,29 +430,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + hostName
 					+ ":2181"));
 		}
-		while (iter.hasNext()) {
-			Entry<Object, Object> entry = (Entry<Object, Object>) iter.next();
-			String key = ((String) entry.getKey());
-
-			if (key.startsWith("spring.") || key.startsWith("amq.")
-					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_")
-					|| key.startsWith("server.")
-					|| key.startsWith("management.") || key.startsWith("PORT")) {
-				result.add(exec("export " + key.replace(".", "_") + "="
-						+ entry.getValue()));
-			}
-
-		}
-
 		return result;
 	}
 
-	public boolean isUseEmbeddedZookeeper() {
-		return useEmbeddedZookeeper;
-	}
-
-	public void setUseEmbeddedZookeeper(boolean useEmbeddedZookeeper) {
-		this.useEmbeddedZookeeper = useEmbeddedZookeeper;
-	}
 }

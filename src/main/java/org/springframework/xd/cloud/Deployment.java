@@ -19,12 +19,16 @@ package org.springframework.xd.cloud;
 import java.net.InetAddress;
 
 /**
- * @author glenn renfro
+Represents a provisioned instance and its status.  
  * 
+ * @author Glenn Renfro
  */
 public class Deployment {
+
 	private final InetAddress address;
+
 	private final InstanceType type;
+
 	private final DeploymentStatus status;
 
 	public Deployment(InetAddress address, InstanceType type,

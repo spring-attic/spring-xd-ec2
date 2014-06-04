@@ -17,11 +17,13 @@
 package org.springframework.xd.cloud;
 
 /**
+ * Creates the scripts that will be used to install, bootstrap and configure XD instance.
  * @author glenn renfro
  * 
  */
 
 public interface InstanceConfigurer {
+
 	/**
 	 * Create JClouds Builder script that initialies a single XD node instance.
 	 * 

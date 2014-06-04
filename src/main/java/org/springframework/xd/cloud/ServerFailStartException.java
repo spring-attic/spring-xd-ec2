@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.xd.cloud;
 
 /**
@@ -20,10 +21,7 @@ package org.springframework.xd.cloud;
  * 
  * @author Glenn Renfro
  */
-public class ServerFailStartException extends Exception {
-
-
-	private static final long serialVersionUID = 1L;
+public class ServerFailStartException extends RuntimeException {
 
 	public ServerFailStartException() {
 	}

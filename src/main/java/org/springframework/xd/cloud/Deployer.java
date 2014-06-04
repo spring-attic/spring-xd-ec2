@@ -17,7 +17,6 @@
 package org.springframework.xd.cloud;
 
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Deployers install XD into a cloud. This includes copying all necessary files,
@@ -27,51 +26,13 @@ import java.util.concurrent.TimeoutException;
  * 
  */
 public interface Deployer {
+
 	/**
 	 * Executes associated deployment based on the properties.
 	 * 
 	 * @return A list of Instances that were successfully created. And their
 	 *         status.
-	 * @throws TimeoutException
-	 * @throws ServerFailStartException 
 	 */
-	public List<Deployment> deploy() throws TimeoutException, ServerFailStartException;
-
-	/**
-	 * Deploys a single node instance of XD.
-	 * 
-	 * @param script
-	 *            - The script built by JClouds Script Builder that initializes
-	 *            the Node
-	 * @return The instance information for a successfully created XD-Node
-	 * @throws TimeoutException
-	 * @throws ServerFailStartException 
-	 */
-	public Deployment deploySingleNode(String script)
-			throws TimeoutException, ServerFailStartException;
-
-	/**
-	 * Deploys a Admin instance of XD.
-	 * 
-	 * @param script
-	 *            - The script built by JClouds Script Builder that initializes
-	 *            the Admin Server
-	 * @return The instance information for a successfully created Admin Server
-	 * @throws TimeoutException
-	 * @throws ServerFailStartException 
-	 */
-	public Deployment deployAdminServer(String script)
-			throws TimeoutException, ServerFailStartException;
-
-	/**
-	 * Deploys the node instances for XD.
-	 * 
-	 * @param script
-	 *            - The admin server this container will be associated.
-	 * @return A list of instances and whether they were successfully created or
-	 *         not.
-	 * @throws TimeoutException
-	 */
-	public List<Deployment> deployContainerServers(String hostName) throws TimeoutException;
+	public List<Deployment> deploy();
 
 }

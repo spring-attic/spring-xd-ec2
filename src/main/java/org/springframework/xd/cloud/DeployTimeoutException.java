@@ -17,18 +17,31 @@
 package org.springframework.xd.cloud;
 
 /**
- * Exception for when the URL specified for the XD Zip,is invalid.
+ * Exception for when a service failed to start after a specified period of time.
  * 
  * @author Glenn Renfro
  */
-public class InvalidXDZipUrlException extends IllegalArgumentException {
+public class DeployTimeoutException extends RuntimeException {
 
-	public InvalidXDZipUrlException() {
-		super();
+
+	public DeployTimeoutException() {
 	}
 
-	public InvalidXDZipUrlException(String s) {
-		super(s);
+	public DeployTimeoutException(String message) {
+		super(message);
+	}
+
+	public DeployTimeoutException(Throwable cause) {
+		super(cause);
+	}
+
+	public DeployTimeoutException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+	public DeployTimeoutException(String message, Throwable cause,
+			boolean enableSuppression, boolean writableStackTrace) {
+		super(message, cause, enableSuppression, writableStackTrace);
 	}
 
 }

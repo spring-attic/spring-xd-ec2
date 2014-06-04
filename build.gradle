@@ -1,134 +1,161 @@
-apply plugin: 'java'
-apply plugin: 'eclipse'
-apply plugin: 'application'
+	apply plugin: 'java'
+	apply plugin: 'eclipse'
+	apply plugin: 'application'
+	apply plugin: 'eclipse'
+	apply plugin: 'sonar-runner'
+	
+	
 
-sourceCompatibility = 1.7
-version = '1.0'
-mainClassName = "org.springframework.xd.ec2.Main"
-
-buildscript {
+	sourceCompatibility = 1.7
+	version = '1.0'
+	mainClassName = "org.springframework.xd.ec2.Main"
+	
+	buildscript {
+		repositories {
+			maven { url 'http://repo.spring.io/plugins-snapshot' }
+			maven { url 'http://repo.spring.io/plugins-release' }
+		}
+		dependencies {
+			classpath("org.springframework.build.gradle:propdeps-plugin:0.0.3")
+			classpath 'org.ajoberstar:gradle-git:0.4.0'
+		}
+	}
+	
 	repositories {
-		maven { url 'http://repo.spring.io/plugins-snapshot' }
-		maven { url 'http://repo.spring.io/plugins-release' }
+	    mavenCentral()
+	    maven { url "http://repo.springsource.org/plugins-snapshot" }
 	}
+	
+	task setupProject {
+	    def config = file("$buildDir/config")
+	    outputs.dir config
+	}
+	
+	task scriptFiles {
+	        def scripts = file("src/main/scripts/shutdown-xd-ec2")
+	        outputs.dir scripts
+	}
+	
+	applicationDistribution.from(scriptFiles) {
+	        into "bin"
+	}
+	
+	task copyConfigs(type:Copy, dependsOn: ':setupProject') {
+	from 'src/main/resources/xd-ec2.properties'
+	into "$buildDir/config"
+	}
+	
+	applicationDistribution.from(copyConfigs) {
+	    into "config"
+	}
+	ext {
+		springVersion = '4.0.0.RELEASE'
+		mockitoVersion = '1.8.4'
+		log4jBridgeVersion = '1.7.5'
+		commonsVersion = '3.2'
+		jcloudsVersion = '1.7.1'
+		logbackVersion = '1.0.13'
+	    linkHomepage = 'https://github.com/spring-projects/spring-xd-ec2'
+	    linkCi       = 'https://build.springsource.org/browse/XD'
+	    linkIssue    = 'https://jira.springsource.org/browse/XD'
+	    linkScmUrl           = 'https://github.com/spring-projects/spring-xd-ec2'
+	    linkScmConnection    = 'https://github.com/spring-projects/spring-xd-ec2.git'
+	    linkScmDevConnection = 'git@github.com:spring-projects/spring-xd-ec2.git'
+		javadocLinks = [
+			"http://static.springsource.org/spring-shell/docs/current/api/"
+		] as String[]
+	
+		}
+		
+	configurations {
+	                jacoco //Configuration Group used by Sonar to provide Code Coverage using JaCoCo
+	}
+	
 	dependencies {
-		classpath("org.springframework.build.gradle:propdeps-plugin:0.0.3")
-		classpath 'org.ajoberstar:gradle-git:0.4.0'
-	}
-}
-
-repositories {
-    mavenCentral()
-    maven { url "http://repo.springsource.org/plugins-snapshot" }
-}
-
-task setupProject {
-    def config = file("$buildDir/config")
-    outputs.dir config
-}
-
-task scriptFiles {
-        def scripts = file("src/main/scripts/shutdown-xd-ec2")
-        outputs.dir scripts
-}
-
-applicationDistribution.from(scriptFiles) {
-        into "bin"
-}
-
-task copyConfigs(type:Copy, dependsOn: ':setupProject') {
-from 'src/main/resources/xd-ec2.properties'
-into "$buildDir/config"
-}
-
-applicationDistribution.from(copyConfigs) {
-    into "config"
-}
-ext {
-	springVersion = '4.0.0.RELEASE'
-	mockitoVersion = '1.8.4'
-	log4jBridgeVersion = '1.7.5'
-	commonsVersion = '3.2'
-	jcloudsVersion = '1.7.1'
-	logbackVersion = '1.0.13'
-    linkHomepage = 'https://github.com/spring-projects/spring-xd-ec2'
-    linkCi       = 'https://build.springsource.org/browse/XD'
-    linkIssue    = 'https://jira.springsource.org/browse/XD'
-    linkScmUrl           = 'https://github.com/spring-projects/spring-xd-ec2'
-    linkScmConnection    = 'https://github.com/spring-projects/spring-xd-ec2.git'
-    linkScmDevConnection = 'git@github.com:spring-projects/spring-xd-ec2.git'
-	javadocLinks = [
-		"http://static.springsource.org/spring-shell/docs/current/api/"
-	] as String[]
-
+	    compile "org.slf4j:log4j-over-slf4j:$log4jBridgeVersion"
+	    compile "commons-collections:commons-collections:$commonsVersion"
+	//    compile "org.apache.jclouds.provider:aws-ec2:$jcloudsVersion"
+	    compile "org.apache.jclouds.driver:jclouds-sshj:$jcloudsVersion"
+	    compile "org.apache.jclouds:jclouds-all:$jcloudsVersion"
+	    compile "org.springframework:spring-core:$springVersion"
+	    compile "org.springframework:spring-context:$springVersion"
+		compile "org.springframework:spring-web:$springVersion"
+		compile "org.springframework:spring-test:$springVersion"
+		compile "ch.qos.logback:logback-classic:$logbackVersion"
+		
+	    jacoco group: "org.jacoco", name: "org.jacoco.agent", version: "0.6.2.201302030002", classifier: "runtime"
+		
+		testCompile "org.springframework:spring-test:$springVersion"
+		testCompile "org.mockito:mockito-all:$mockitoVersion"
+	    testCompile group: 'junit', name: 'junit', version: '4.+'
+	        
 	}
 	
-configurations {
-                jacoco //Configuration Group used by Sonar to provide Code Coverage using JaCoCo
-}
-
-dependencies {
-    compile "org.slf4j:log4j-over-slf4j:$log4jBridgeVersion"
-    compile "commons-collections:commons-collections:$commonsVersion"
-//    compile "org.apache.jclouds.provider:aws-ec2:$jcloudsVersion"
-    compile "org.apache.jclouds.driver:jclouds-sshj:$jcloudsVersion"
-    compile "org.apache.jclouds:jclouds-all:$jcloudsVersion"
-    compile "org.springframework:spring-core:$springVersion"
-    compile "org.springframework:spring-context:$springVersion"
-	compile "org.springframework:spring-web:$springVersion"
-	compile "org.springframework:spring-test:$springVersion"
-	compile "ch.qos.logback:logback-classic:$logbackVersion"
 	
-    jacoco group: "org.jacoco", name: "org.jacoco.agent", version: "0.6.2.201302030002", classifier: "runtime"
+	startScripts {
+	    classpath = files('src/dist/config')+classpath
+	    doLast {
+	        def windowsScriptFile = file getWindowsScript()
+	        def unixScriptFile    = file getUnixScript()
+	        windowsScriptFile.text = windowsScriptFile.text.replace('%APP_HOME%\\lib\\config', '%APP_HOME%\\config')
+	        unixScriptFile.text    = unixScriptFile.text.replace('$APP_HOME/lib/config', '$APP_HOME/config')
+	    }
+	}
 	
-	testCompile "org.springframework:spring-test:$springVersion"
-	testCompile "org.mockito:mockito-all:$mockitoVersion"
-    testCompile group: 'junit', name: 'junit', version: '4.+'
-        
-}
+	sonarRunner {
+	        sonarProperties {
+	                property "sonar.jacoco.reportPath", "${buildDir.name}/jacoco.exec"
+	                property "sonar.links.homepage", linkHomepage
+	                property "sonar.links.ci", linkCi
+	                property "sonar.links.issue", linkIssue
+	                property "sonar.links.scm", linkScmUrl
+	                property "sonar.links.scm_dev", linkScmDevConnection
+	                property "sonar.java.coveragePlugin", "jacoco"
+	        }
+	}
+	
+	test {
+	    systemProperties 'property': 'value'
+	    	jvmArgs "-javaagent:${configurations.jacoco.asPath}=destfile=${buildDir}/jacoco.exec,includes=org.springframework.xd.*"
+			jvmArgs "-XX:MaxPermSize=256m"
+			jvmArgs "-Djava.net.preferIPv4Stack=true"
+	
+	}
+	uploadArchives {
+	    repositories {
+	       flatDir {
+	           dirs 'repos'
+	       }
+	    }
+	}
+	task wrapper(type: Wrapper) {
+		description = "Generates build_xd_ec2[.bat] scripts"
+		gradleVersion = "1.6"
+	}
+	eclipse {
+		project { natures += 'org.springframework.ide.eclipse.core.springnature' }
+	}
 
+	// Include project specific settings
+	task eclipseSettings(type: Copy) {
+		from rootProject.files(
+				"src/eclipse/org.eclipse.jdt.ui.prefs",
+				"src/eclipse/de.loskutov.anyedit.AnyEditTools.prefs")
+		into project.file('.settings/')
+	}
 
-startScripts {
-    classpath = files('src/dist/config')+classpath
-    doLast {
-        def windowsScriptFile = file getWindowsScript()
-        def unixScriptFile    = file getUnixScript()
-        windowsScriptFile.text = windowsScriptFile.text.replace('%APP_HOME%\\lib\\config', '%APP_HOME%\\config')
-        unixScriptFile.text    = unixScriptFile.text.replace('$APP_HOME/lib/config', '$APP_HOME/config')
-    }
-}
+	task eclipseJdtPrepare(type: Copy) {
+		from rootProject.file("src/eclipse/org.eclipse.jdt.core.prefs")
+		into project.file(".settings/")
+	}
 
-apply plugin: 'sonar-runner'
+	task cleanEclipseJdtUi(type: Delete) {
+		delete project.file(".settings/org.eclipse.jdt.ui.prefs")
+		delete project.file(".settings/org.eclipse.jdt.core.prefs")
+	}
 
-sonarRunner {
-        sonarProperties {
-                property "sonar.jacoco.reportPath", "${buildDir.name}/jacoco.exec"
-                property "sonar.links.homepage", linkHomepage
-                property "sonar.links.ci", linkCi
-                property "sonar.links.issue", linkIssue
-                property "sonar.links.scm", linkScmUrl
-                property "sonar.links.scm_dev", linkScmDevConnection
-                property "sonar.java.coveragePlugin", "jacoco"
-        }
-}
-
-test {
-    systemProperties 'property': 'value'
-    	jvmArgs "-javaagent:${configurations.jacoco.asPath}=destfile=${buildDir}/jacoco.exec,includes=org.springframework.xd.*"
-		jvmArgs "-XX:MaxPermSize=256m"
-		jvmArgs "-Djava.net.preferIPv4Stack=true"
-
-}
-uploadArchives {
-    repositories {
-       flatDir {
-           dirs 'repos'
-       }
-    }
-}
-task wrapper(type: Wrapper) {
-	description = "Generates build_xd_ec2[.bat] scripts"
-	gradleVersion = "1.6"
-}
+	tasks["eclipseJdt"].dependsOn(eclipseJdtPrepare)
+	tasks["cleanEclipse"].dependsOn(cleanEclipseJdtUi)
+	tasks["eclipse"].dependsOn(eclipseSettings)
 
 

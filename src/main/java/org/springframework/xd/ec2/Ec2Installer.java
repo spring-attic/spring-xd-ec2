@@ -24,10 +24,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeoutException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -38,36 +38,41 @@ import org.springframework.xd.cloud.Deployment;
 import org.springframework.xd.cloud.InstanceSize;
 import org.springframework.xd.cloud.InstanceType;
 import org.springframework.xd.cloud.InvalidXDZipUrlException;
-import org.springframework.xd.cloud.ServerFailStartException;
 import org.springframework.xd.ec2.cloud.AWSDeployer;
 
 /**
- * The component that kicks off the installation process.
+ * The Retrieves he user setting and kicks off the provisioning and deployment process.
  * 
  * @author glenn renfro
  * 
  */
 @Component
 public class Ec2Installer {
+
 	/**
 	 * @param args
 	 */
 	private final static Logger LOGGER = LoggerFactory
 			.getLogger(Ec2Installer.class);
+
 	public final static String HIGHLIGHT = "************************************************************************";
-	
-	
-	
+
+
 	@Autowired
-	private transient Banner banner;
+	private Banner banner;
 
-	private transient Deployer deployer;
+	private Deployer deployer;
+
 	public static final String[] REQUIRED_ENTRIES = { "cluster-name",
-			"aws-access-key", "aws-secret-key", "private-key-file",
-			"user-name", "region", "machine-size", "security-group",
-			"public-key-name", "ami", "multi-node" };
+		"aws-access-key", "aws-secret-key", "private-key-file",
+		"user-name", "region", "machine-size", "security-group",
+		"public-key-name", "ami", "multi-node" };
 
-	public void install() throws TimeoutException, IOException, ServerFailStartException {
+	/**
+	 * Displays the banner verifies that the configuration is valid and kicks off the deployment.
+	 * Removes old artifacts if present.
+	 */
+	public void install() {
 		try {
 			banner.print("banner.txt");
 			final Properties properties = getProperties();
@@ -75,52 +80,54 @@ public class Ec2Installer {
 			removeArtifacts();
 			deployer = new AWSDeployer(properties);
 			final List<Deployment> result = deployer.deploy();
-			LOGGER.info("\n\n"+HIGHLIGHT);
+			LOGGER.info("\n\n" + HIGHLIGHT);
 			LOGGER.info("*Installation Complete                                                 *");
 			LOGGER.info("*The following Servers have been deployed to your XD Cluster           *");
 			LOGGER.info(HIGHLIGHT);
-			generateArtifacts(result,properties);
+			generateArtifacts(result, properties);
 			LOGGER.info(HIGHLIGHT);
-		} catch (TimeoutException te) {
-			LOGGER.error("Installation FAILED");
-			te.printStackTrace();
-		} catch (InvalidXDZipUrlException zipException) {
+		}
+		catch (InvalidXDZipUrlException zipException) {
 			LOGGER.error(zipException.getMessage());
-			zipException.printStackTrace();
-		} catch (IllegalArgumentException iae) {
+		}
+		catch (IllegalArgumentException iae) {
 			LOGGER.info(HIGHLIGHT);
 			LOGGER.error("An IllegalArgumentException has been thrown with the following message: \n"
 					+ iae.getMessage());
 			LOGGER.error("\nMake sure you updated the config/xd-ec2.properties");
 			LOGGER.info(HIGHLIGHT);
-			LOGGER.info(iae.getMessage());
-			iae.printStackTrace();
+			LOGGER.info(iae.getMessage(), iae);
 		}
 	}
-	private void removeArtifacts(){
-	    	try{
-	    		
-	    		File file = new File("ec2servers.csv");
-	    		if(!file.exists()){
-	    			return;
-	    		}
-	    		if(file.delete()){
-	    			LOGGER.debug(file.getName() + " is deleted!");
-	    		}else{
-	    			LOGGER.debug(file.getName() + " was failed to be deleted!");
-	    		}
-	 
-	    	}catch(Exception e){
-	    		LOGGER.error(e.getMessage());
-	    	}
+
+	/** 
+	 * If artifacts from a previoius run are still present, this method deletes them.
+	 */
+	private void removeArtifacts() {
+		File file = new File("ec2servers.csv");
+		if (!file.exists()) {
+			return;
+		}
+		if (file.delete()) {
+			LOGGER.debug(file.getName() + " is deleted!");
+		}
+		else {
+			LOGGER.debug(file.getName() + " was failed to be deleted!");
+		}
 	}
-	private void generateArtifacts(List<Deployment>deployment,Properties properties){
+
+	/**
+	 * Creates the artifact file that will be used by other processes in a CI build.
+	 * @param deployment A list of the deployed servers.
+	 * @param properties The properties used to provision the resources and deploy the XD cluster.
+	 */
+	private void generateArtifacts(List<Deployment> deployment, Properties properties) {
 		try {
-			  
+
 			File file = new File("ec2servers.csv");
- 
+
 			file.createNewFile();
- 
+
 			FileWriter fw = new FileWriter(file.getAbsoluteFile());
 			BufferedWriter bw = new BufferedWriter(fw);
 			String port = properties.getProperty("PORT");
@@ -130,64 +137,73 @@ public class Ec2Installer {
 					LOGGER.info(String.format(
 							"Single Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("singleNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+","+jmxPort+"\n");
+					bw.write("singleNode," + instance.getAddress().getHostName() + ","
+							+ properties.getProperty("server.port") + "," + port + "," + jmxPort + "\n");
 				}
 				if (instance.getType() == InstanceType.ADMIN) {
 					LOGGER.info(String.format(
 							">Admin Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("adminNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+","+jmxPort+"\n");
+					bw.write("adminNode," + instance.getAddress().getHostName() + ","
+							+ properties.getProperty("server.port") + "," + port + "," + jmxPort + "\n");
 
 				}
 				if (instance.getType() == InstanceType.NODE) {
 					LOGGER.info(String.format(
 							">>Container Node Instance: %s has been created",
 							instance.getAddress().getHostName()));
-					bw.write("containerNode,"+instance.getAddress().getHostName()+","+properties.getProperty("server.port")+","+port+","+jmxPort+"\n");
+					bw.write("containerNode," + instance.getAddress().getHostName() + ","
+							+ properties.getProperty("server.port") + "," + port + "," + jmxPort + "\n");
 
 				}
 			}
 			bw.close();
- 
+
 			LOGGER.info("Done");
- 
-		} catch (IOException e) {
-			e.printStackTrace();
+
+		}
+		catch (IOException e) {
+			LOGGER.error(e.getMessage(), e);
 		}
 	}
-	private Properties getProperties() throws IOException {
+
+	/** 
+	 * Retrieves the properties from property file or the environment.
+	 * @return a properties object with the configuration to provision resources and deploy the application.
+	 */
+	private Properties getProperties() {
 		Resource resource = new ClassPathResource("xd-ec2.properties");
 		Properties props = null;
 		try {
 			props = PropertiesLoaderUtils.loadProperties(resource);
 			Iterator<Object> iter = props.keySet().iterator();
-			while(iter.hasNext()){
-				String key = (String)iter.next();
+			while (iter.hasNext()) {
+				String key = (String) iter.next();
 				props.setProperty(key, getAWSProperty(props, key));
-
 			}
-			
-		} catch (IOException ioe) {
+
+		}
+		catch (IOException ioe) {
 			LOGGER.error("Failed to open xd-ec2.properties file because: "
 					+ ioe.getMessage());
-			throw ioe;
+			throw new IllegalStateException(ioe.getMessage(), ioe);
 		}
 		return props;
 	}
-	
-	private String getAWSProperty(Properties props, String propKey){
+
+	private String getAWSProperty(Properties props, String propKey) {
 		Properties systemProperties = System.getProperties();
 
-		if(systemProperties.containsKey(propKey) && !systemProperties.getProperty(propKey).equals("")){
+		if (systemProperties.containsKey(propKey) && !systemProperties.getProperty(propKey).equals("")) {
 			return systemProperties.getProperty(propKey);
 		}
-		if(props.containsKey(propKey) && !props.getProperty(propKey).equals("")){
+		if (props.containsKey(propKey) && !props.getProperty(propKey).equals("")) {
 			return props.getProperty(propKey);
 		}
 
 		return "";
 	}
-	
+
 	/**
 	 * Verifies that all properties that the application needs are setup
 	 * properly.
@@ -215,23 +231,25 @@ public class Ec2Installer {
 					"Invalid machine size specified.  Valid values are small, medium, large");
 		}
 		if (Boolean.parseBoolean(props.getProperty("multi-node"))) {
-			try {
-				Integer.getInteger(props.getProperty("number-nodes"));
-			} catch (Exception e) {
-				throw new IllegalArgumentException(
-						"Invalid number-nodes value.  Valid values are integers greater than zero");
-			}
+			Integer.getInteger(props.getProperty("number-nodes"));
 		}
 		return props;
 	}
 
+	/**
+	 * Verifies that the user has chose a valid VM size.
+	 * @param machineSize The size of the machine requested by the configuration.
+	 * @return True if valid  Else false.
+	 */
 	private boolean verifyMachineSize(String machineSize) {
 		boolean verified = false;
 		if (machineSize.equalsIgnoreCase(InstanceSize.SMALL.name())) {
 			verified = true;
-		} else if (machineSize.equalsIgnoreCase(InstanceSize.MEDIUM.name())) {
+		}
+		else if (machineSize.equalsIgnoreCase(InstanceSize.MEDIUM.name())) {
 			verified = true;
-		} else if (machineSize.equalsIgnoreCase(InstanceSize.LARGE.name())) {
+		}
+		else if (machineSize.equalsIgnoreCase(InstanceSize.LARGE.name())) {
 			verified = true;
 		}
 		return verified;

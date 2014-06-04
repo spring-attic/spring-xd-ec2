@@ -1,10 +1,25 @@
+/*
+ * Copyright 2013 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.springframework.xd.ec2.cloud;
 
 import static org.jclouds.util.Predicates2.retry;
 
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.jclouds.aws.ec2.AWSEC2Api;
 import org.jclouds.compute.ComputeService;
@@ -14,20 +29,34 @@ import org.jclouds.predicates.SocketOpen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.util.Assert;
+import org.springframework.xd.cloud.DeployTimeoutException;
+
 import com.google.common.base.Predicate;
 import com.google.common.net.HostAndPort;
 
+/**
+ * Verifies services are available.  
+ */
 public class AWSInstanceChecker {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AWSDeployer.class);
+
 	private AWSEC2Api client;
+
 	private ComputeService computeService;
+
 	private int redisPort;
+
 	private int rabbitPort;
+
 	private int zookeeperPort;
 
 	public AWSInstanceChecker(Properties properties, AWSEC2Api client,
 			ComputeService computeService) {
+		Assert.notNull(properties, "properties can not be null");
+		Assert.notNull(client, "client can not be null");
+		Assert.notNull(computeService, "computeService can not be null");
 		this.client = client;
 		this.computeService = computeService;
 		redisPort = Integer.valueOf(properties.getProperty("spring.redis.port"));
@@ -36,8 +65,13 @@ public class AWSInstanceChecker {
 
 	}
 
-	public void checkServerInstance(RunningInstance instance, final int port)
-			throws TimeoutException {
+	/**
+	 * Verfies that XD admin or single node is up and running
+	 * @param instance The instance where the XD server is deployed
+	 * @param port the port to monitor.
+	 */
+	public void checkServerInstance(RunningInstance instance, final int port) {
+		Assert.notNull(instance, "instance can not be null");
 		RunningInstance localInstance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
 		final SocketOpen socketOpen = computeService.getContext().utils().injector()
@@ -46,17 +80,23 @@ public class AWSInstanceChecker {
 				TimeUnit.SECONDS);
 		LOGGER.info(String.format("Awaiting XD server to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(localInstance.getIpAddress(),
-				port))){
-			throw new TimeoutException("timeout waiting for server to start: "
+				port))) {
+			throw new DeployTimeoutException("timeout waiting for server to start: "
 					+ localInstance.getIpAddress());
 		}
 		LOGGER.info(String.format("Server started%n"));
 
 	}
 
-	public RunningInstance checkServerResources(RunningInstance instanceParam, boolean isEmbeddedZookeeper
-			)
-			throws TimeoutException {
+	/**
+	 * Verifies that the redis, rabbit and zookeeper are running.
+	 * @param instanceParam The instance that the xd is deployed.
+	 * @param isEmbeddedZookeeper if false it checks that zookeeper is up and running, if true it does not check.
+	 * @return check
+	 */
+	public RunningInstance checkServerResources(RunningInstance instanceParam, boolean isEmbeddedZookeeper)
+	{
+		Assert.notNull(instanceParam, "instanceParam can not be null");
 		RunningInstance instance = checkAWSInstance(instanceParam);
 		LOGGER.info("*******Verifying Required XD Resources.*******");
 
@@ -67,21 +107,21 @@ public class AWSInstanceChecker {
 		LOGGER.info(String.format("Awaiting Redis service to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
 				redisPort)))
-			throw new TimeoutException("timeout waiting for Redis to start: "
+			throw new DeployTimeoutException("timeout waiting for Redis to start: "
 					+ instance.getIpAddress());
 		LOGGER.info(String.format("Redis service started"));
 
 		LOGGER.info(String.format("Awaiting Rabbit service to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
 				rabbitPort)))
-			throw new TimeoutException("timeout waiting for Rabbit to start: "
+			throw new DeployTimeoutException("timeout waiting for Rabbit to start: "
 					+ instance.getIpAddress());
 		LOGGER.info(String.format("Rabbit service started"));
 		if (!isEmbeddedZookeeper) {
 			LOGGER.info(String.format("Awaiting ZooKeeper service to start"));
 			if (!socketTester.apply(HostAndPort.fromParts(
 					instance.getIpAddress(), zookeeperPort)))
-				throw new TimeoutException(
+				throw new DeployTimeoutException(
 						"timeout waiting for zookeeper to start: "
 								+ instance.getIpAddress());
 			LOGGER.info(String.format("Zoo Keeper service started%n"));
@@ -94,8 +134,13 @@ public class AWSInstanceChecker {
 		return instance;
 	}
 
-	public RunningInstance checkAWSInstance(RunningInstance instanceParam)
-			throws TimeoutException {
+	/**
+	 * Verfies that the EC2 instance is running.  Also verfies ssh service is running
+	 * @param instanceParam The instance to be monitored.
+	 * @return  RunningInstance object.
+	 */
+	public RunningInstance checkAWSInstance(RunningInstance instanceParam) {
+		Assert.notNull(instanceParam, "instanceParam can not be null");
 		Predicate<RunningInstance> runningTester = retry(
 				new InstanceStateRunning(client), 180, 1, TimeUnit.SECONDS);
 
@@ -103,7 +148,7 @@ public class AWSInstanceChecker {
 		LOGGER.info(String.format("Awaiting instance to run"));
 
 		if (!runningTester.apply(instanceParam))
-			throw new TimeoutException("timeout waiting for instance to run: "
+			throw new DeployTimeoutException("timeout waiting for instance to run: "
 					+ instanceParam.getId());
 
 		RunningInstance instance = AWSInstanceProvisioner.findInstanceById(client,
@@ -115,7 +160,7 @@ public class AWSInstanceChecker {
 		LOGGER.info(String.format("Awaiting ssh service to start"));
 		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
 				22)))
-			throw new TimeoutException("timeout waiting for ssh to start: "
+			throw new DeployTimeoutException("timeout waiting for ssh to start: "
 					+ instance.getIpAddress());
 
 		LOGGER.info(String.format("ssh service started%n"));
@@ -133,7 +178,8 @@ public class AWSInstanceChecker {
 	 *            the jmx port .
 	 * @return
 	 */
-	public boolean checkContainerProcess(RunningInstance instance, int managementPort) throws TimeoutException {
+	public boolean checkContainerProcess(RunningInstance instance, int managementPort) {
+		Assert.notNull(instance, "instance can not be null");
 		boolean result = true;
 		RunningInstance localInstance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
@@ -143,7 +189,7 @@ public class AWSInstanceChecker {
 				TimeUnit.SECONDS);
 		LOGGER.info(String.format("Awaiting XD container to start %n"));
 		if (!socketTester.apply(HostAndPort.fromParts(localInstance.getIpAddress(),
-				managementPort))){
+				managementPort))) {
 			result = false;
 			LOGGER.warn("timeout waiting for container to start: "
 					+ localInstance.getIpAddress());

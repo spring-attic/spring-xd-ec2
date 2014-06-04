@@ -13,18 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.springframework.xd.ec2;
 
 import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 /**
+ * Shuts down all EC2 instance that have the cluster-name specified by arguments.
  * @author glenn renfro
  * 
  */
 public class MainShutdown {
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 
 		@SuppressWarnings("resource")
 		AbstractApplicationContext ctx = new ClassPathXmlApplicationContext(
