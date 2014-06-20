@@ -51,7 +51,7 @@ mqtt.username=guest
 mqtt.password=guest
 mqtt.default.topic=xd.mqtt.test
 
-amq.url=tcp://ec2-54-205-58-170.compute-1.amazonaws.com:61616
+brokerURL=tcp://ec2-54-205-58-170.compute-1.amazonaws.com:61616
 ```
 
 Setting Up Job Repository

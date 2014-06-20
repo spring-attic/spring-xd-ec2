@@ -340,7 +340,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			String key = (String) entry.getKey();
 			boolean isValidKey = false;
 
-			if (key.startsWith("spring.") || key.startsWith("amq.")
+			if (key.startsWith("spring.") || key.startsWith("brokerURL")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
 					|| key.startsWith("XD_") || key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
@@ -402,7 +402,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			boolean isValidKey = false;
 			Entry<Object, Object> entry = iter.next();
 			String key = (String) entry.getKey();
-			if (key.startsWith("spring.") || key.startsWith("amq.")
+			if (key.startsWith("spring.") || key.startsWith("brokerURL")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
 					|| key.startsWith("XD_") || key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
