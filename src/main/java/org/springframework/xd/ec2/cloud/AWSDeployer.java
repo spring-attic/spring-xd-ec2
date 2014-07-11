@@ -117,6 +117,8 @@ public class AWSDeployer implements Deployer {
 
 	private String hadoopVersion;
 
+	private long instanceProvisionWaitTime;
+
 	final int RETRY_COUNT = 3;
 
 	/**
@@ -138,6 +140,8 @@ public class AWSDeployer implements Deployer {
 		numberOfInstances = properties.getProperty("number-nodes");
 		hadoopVersion = properties.getProperty("XD_HADOOP_DISTRO");
 		managementPort = Integer.parseInt(properties.getProperty("management.port"));
+		instanceProvisionWaitTime = Long.valueOf(properties.getProperty("instance-provision-wait-time"));
+
 
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
@@ -193,6 +197,10 @@ public class AWSDeployer implements Deployer {
 		LOGGER.info("Deploying SingleNode");
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
 				.runInstance(configurer.createStartXDResourcesScript(), 1));
+		if (instanceChecker.waitForInstanceToBeProvisioned(instance, instanceProvisionWaitTime)) {
+			throw new ServerFailStartException("Instance " + instance.getId()
+					+ " did not get into a running state before timeout of " + instanceProvisionWaitTime);
+		}
 		tagInitialization(instance, InstanceType.SINGLE_NODE);
 		instanceChecker.checkServerResources(instance, configurer.isUseEmbeddedZookeeper());
 		LOGGER.info("*******Setting up your single XD instance.*******");
@@ -214,6 +222,10 @@ public class AWSDeployer implements Deployer {
 		LOGGER.info(HIGHLIGHT);
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
 				.runInstance(configurer.createStartXDResourcesScript(), 1));
+		if (instanceChecker.waitForInstanceToBeProvisioned(instance, instanceProvisionWaitTime)) {
+			throw new ServerFailStartException("Instance " + instance.getId()
+					+ " did not get into a running state before timeout of " + instanceProvisionWaitTime);
+		}
 		tagInitialization(instance, InstanceType.ADMIN);
 		instanceChecker.checkServerResources(instance, false);
 		LOGGER.info("*******Setting up your Administrator XD instance.*******");
@@ -370,6 +382,7 @@ public class AWSDeployer implements Deployer {
 					StopWatch inner = new StopWatch("instance "
 							+ currentInstance);
 					inner.start("checkAWSInstance");
+					instanceChecker.waitForInstanceToBeProvisioned(instance, instanceProvisionWaitTime);
 					tagInitialization(instance, InstanceType.NODE);
 					instanceChecker.checkAWSInstance(instance);
 					inner.stop();

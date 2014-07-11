@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.jclouds.aws.ec2.AWSEC2Api;
 import org.jclouds.compute.ComputeService;
+import org.jclouds.ec2.domain.InstanceState;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.jclouds.ec2.predicates.InstanceStateRunning;
 import org.jclouds.predicates.SocketOpen;
@@ -196,6 +197,28 @@ public class AWSInstanceChecker {
 			return result;
 		}
 		LOGGER.info(String.format("Container started%n"));
+		return result;
+	}
+
+	/**
+	 * Awaits for a AWS Instance to be provisioned or until the wait time expires.
+	 * @param instance The aws instance to monitor
+	 * @param waitTime The max time in millis to wait
+	 * @return true if the instance was provisioned, false if it was not.
+	 */
+	public boolean waitForInstanceToBeProvisioned(RunningInstance instance, long waitTime) {
+		boolean result = instance.getInstanceState().equals(InstanceState.RUNNING);
+		long timeout = System.currentTimeMillis() + waitTime;
+		while (!result && System.currentTimeMillis() < timeout) {
+			try {
+				Thread.sleep(1000);
+				result = instance.getInstanceState().equals(InstanceState.RUNNING);
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException(e.getMessage(), e);
+			}
+		}
 		return result;
 	}
 }
