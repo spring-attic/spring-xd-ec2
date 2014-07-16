@@ -55,7 +55,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	private Properties properties;
 
-	private static final String RABBIT_HOST = "spring_rabbitmq_host";
+	private static final String RABBIT_ADDRESSES = "spring_rabbitmq_addresses";
 
 	private static final String REDIS_HOST = "spring_redis_host";
 
@@ -364,7 +364,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		String configCommand = "java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem  ";
 		configCommand = configCommand + " --XD_HOME=" + getInstalledDirectory()
 				+ "/xd";
-		configCommand = configCommand + " --" + RABBIT_HOST + "=" + hostName;
+		configCommand = configCommand + " --" + RABBIT_ADDRESSES + "=" + hostName + ":5672";
 		configCommand = configCommand + " --" + REDIS_HOST + "=" + hostName;
 		if (!useEmbeddedZookeeper) {
 			configCommand = configCommand + " --" + ZK_CLIENT_CONNECT + "="
@@ -424,7 +424,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private List<Statement> getBaseEnvironmentList(String hostName) {
 		List<Statement> result = new ArrayList<Statement>();
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
-		result.add(exec("export " + RABBIT_HOST + "=" + hostName));
+		result.add(exec("export " + RABBIT_ADDRESSES + "=" + hostName + ":5672"));
 		result.add(exec("export " + REDIS_HOST + "=" + hostName));
 		if (!useEmbeddedZookeeper) {
 			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + hostName
