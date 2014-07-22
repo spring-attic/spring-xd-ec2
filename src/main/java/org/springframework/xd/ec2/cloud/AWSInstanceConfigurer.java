@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.xd.cloud.InstanceConfigurer;
 
@@ -51,6 +52,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	private String xdRelease;
 
+	private List<String> xdThirdPartyJars;
+
 	private boolean useEmbeddedZookeeper = true;
 
 	private Properties properties;
@@ -63,6 +66,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	private static final String USE_EMBEDDED_ZOOKEEPER = "use_embedded_zookeeper";
 
+	private static final String XD_THIRD_PARTY_JAR_URLS = "xd-third-party-jar-urls";
+
 	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
 
@@ -72,6 +77,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		Assert.notNull(properties, "properties can not be null");
 		xdDistUrl = properties.getProperty("xd-dist-url");
 		xdRelease = properties.getProperty("xd-release");
+		xdThirdPartyJars = getThirdPartyUrls(properties);
 		if (properties.containsKey(USE_EMBEDDED_ZOOKEEPER)) {
 			useEmbeddedZookeeper = Boolean.parseBoolean(properties
 					.getProperty(USE_EMBEDDED_ZOOKEEPER));
@@ -207,9 +213,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		List<Statement> result = initializeEnvironmentStatements(hostName);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ xdDistUrl);
-		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
-		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
-				+ UBUNTU_HOME));
+		result = addGetResourceStatements(result);
 		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-singlenode " + getHadoopVersion(hadoopVersion) + " &"));
 		return result;
@@ -228,9 +232,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		List<Statement> result = initializeEnvironmentStatements(hostName);
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ xdDistUrl);
-		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
-		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
-				+ UBUNTU_HOME));
+		result = addGetResourceStatements(result);
 		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-admin &"));
 		return result;
@@ -253,9 +255,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
 		LOGGER.info("Using the following host to obtain XD Distribution: "
 				+ xdDistUrl);
-		result.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
-		result.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
-				+ UBUNTU_HOME));
+		result = addGetResourceStatements(result);
 		result.add(exec(constructConfigurationCommand(hostName, instanceIndex)));
 		result.add(exec(getBinDirectory() + "xd-container " + getHadoopVersion(hadoopVersion) + " &"));
 		return result;
@@ -305,6 +305,10 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	private String getBinDirectory() {
 		return getInstalledDirectory() + "/xd/bin/";
+	}
+
+	private String getLibDirectory() {
+		return getInstalledDirectory() + "/xd/lib/";
 	}
 
 	/**
@@ -433,4 +437,30 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		return result;
 	}
 
+	private List<String> getThirdPartyUrls(Properties properties) {
+		List<String> result = new ArrayList<String>();
+		if (properties.containsKey(XD_THIRD_PARTY_JAR_URLS)) {
+			String urls = properties.getProperty(XD_THIRD_PARTY_JAR_URLS);
+			Iterator<String> urlIter = StringUtils.commaDelimitedListToSet(urls).iterator();
+			while (urlIter.hasNext())
+			{
+				result.add(urlIter.next());
+			}
+		}
+		return result;
+	}
+
+	List<Statement> addGetResourceStatements(List<Statement> statements) {
+		statements = new ArrayList<Statement>(statements);
+		statements.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
+		statements.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
+				+ UBUNTU_HOME));
+		//Add jars to xd/lib
+		Iterator<String> urlIter = xdThirdPartyJars.iterator();
+		while (urlIter.hasNext()) {
+			statements.add(exec("wget -P " + getLibDirectory() + " " + urlIter.next()));
+		}
+		return statements;
+
+	}
 }
