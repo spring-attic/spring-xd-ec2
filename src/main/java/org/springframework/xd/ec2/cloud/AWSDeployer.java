@@ -16,10 +16,31 @@
 
 package org.springframework.xd.ec2.cloud;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_PORT_OPEN;
-import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_SCRIPT_COMPLETE;
-import static org.springframework.xd.ec2.Ec2Installer.HIGHLIGHT;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.inject.Module;
+import org.jclouds.ContextBuilder;
+import org.jclouds.aws.ec2.AWSEC2Api;
+import org.jclouds.compute.ComputeService;
+import org.jclouds.compute.ComputeServiceContext;
+import org.jclouds.compute.domain.ExecResponse;
+import org.jclouds.compute.options.RunScriptOptions;
+import org.jclouds.domain.Credentials;
+import org.jclouds.domain.LoginCredentials;
+import org.jclouds.ec2.domain.Reservation;
+import org.jclouds.ec2.domain.RunningInstance;
+import org.jclouds.http.handlers.BackoffLimitedRetryHandler;
+import org.jclouds.io.payloads.FilePayload;
+import org.jclouds.sshj.SshjSshClient;
+import org.jclouds.sshj.config.SshjSshClientModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.util.Assert;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.util.StopWatch;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.xd.cloud.*;
+import org.springframework.xd.ec2.Main;
 
 import java.io.File;
 import java.io.FileReader;
@@ -40,39 +61,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.jclouds.ContextBuilder;
-import org.jclouds.aws.ec2.AWSEC2Api;
-import org.jclouds.compute.ComputeService;
-import org.jclouds.compute.ComputeServiceContext;
-import org.jclouds.compute.domain.ExecResponse;
-import org.jclouds.compute.options.RunScriptOptions;
-import org.jclouds.domain.Credentials;
-import org.jclouds.domain.LoginCredentials;
-import org.jclouds.ec2.domain.Reservation;
-import org.jclouds.ec2.domain.RunningInstance;
-import org.jclouds.http.handlers.BackoffLimitedRetryHandler;
-import org.jclouds.io.payloads.FilePayload;
-import org.jclouds.sshj.SshjSshClient;
-import org.jclouds.sshj.config.SshjSshClientModule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.springframework.util.Assert;
-import org.springframework.util.FileCopyUtils;
-import org.springframework.util.StopWatch;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.xd.cloud.DeployTimeoutException;
-import org.springframework.xd.cloud.Deployer;
-import org.springframework.xd.cloud.Deployment;
-import org.springframework.xd.cloud.DeploymentStatus;
-import org.springframework.xd.cloud.InstanceType;
-import org.springframework.xd.cloud.InvalidXDZipUrlException;
-import org.springframework.xd.cloud.ServerFailStartException;
-import org.springframework.xd.ec2.Main;
-
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.inject.Module;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_PORT_OPEN;
+import static org.jclouds.compute.config.ComputeServiceProperties.TIMEOUT_SCRIPT_COMPLETE;
+import static org.springframework.xd.ec2.Ec2Installer.HIGHLIGHT;
 
 /**
  * Provisions EC2 Instances, installs required software for a XDCluster as specified by configuration.
@@ -86,10 +78,6 @@ public class AWSDeployer implements Deployer {
 	private static final String UBUNTU_HOME = "/home/ubuntu/";
 
 	private String clusterName;
-
-	private String awsAccessKey;
-
-	private String awsSecretKey;
 
 	private String privateKeyFile;
 
@@ -130,8 +118,6 @@ public class AWSDeployer implements Deployer {
 		Iterable<Module> modules = ImmutableSet
 				.<Module> of(new SshjSshClientModule());
 		clusterName = properties.getProperty("cluster-name");
-		awsAccessKey = properties.getProperty("aws-access-key");
-		awsSecretKey = properties.getProperty("aws-secret-key");
 		privateKeyFile = properties.getProperty("private-key-file");
 		multiNode = properties.getProperty("multi-node");
 		description = properties.getProperty("description");
@@ -142,10 +128,10 @@ public class AWSDeployer implements Deployer {
 		managementPort = Integer.parseInt(properties.getProperty("management.port"));
 		instanceProvisionWaitTime = Long.valueOf(properties.getProperty("instance-provision-wait-time"));
 
-
+		String awsAccessKey = properties.getProperty("aws-access-key");
+		String awsSecretKey = properties.getProperty("aws-secret-key");
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
-				// key I created above
 				.modules(modules).overrides(getTimeoutPolicy())
 				.buildView(ComputeServiceContext.class);
 		computeService = context.getComputeService();
@@ -170,12 +156,11 @@ public class AWSDeployer implements Deployer {
 	public List<Deployment> deploy() {
 
 		ArrayList<Deployment> result = new ArrayList<Deployment>();
-		String script = null;
 		if (multiNode.equalsIgnoreCase("false")) {
-			result.add(deploySingleNode(script));
+			result.add(deploySingleNode());
 		}
 		else if (multiNode.equalsIgnoreCase("true")) {
-			Deployment admin = deployAdminServer(script);
+			Deployment admin = deployAdminServer();
 			result.add(admin);
 			result.addAll(deployContainerServers(admin.getAddress()
 					.getHostAddress()));
@@ -190,10 +175,9 @@ public class AWSDeployer implements Deployer {
 
 	/**
 	 * Deploys a single node instance of XD. 
-	 * @param script - The script built by JClouds Script Builder that initializes the Node
 	 * @return The instance information for a successfully created XD-Node
 	 */
-	private Deployment deploySingleNode(String script) {
+	private Deployment deploySingleNode() {
 		LOGGER.info("Deploying SingleNode");
 		RunningInstance instance = Iterables.getOnlyElement(instanceProvisioner
 				.runInstance(configurer.createStartXDResourcesScript(), 1));
@@ -202,21 +186,24 @@ public class AWSDeployer implements Deployer {
 					+ " did not get into a running state before timeout of " + instanceProvisionWaitTime);
 		}
 		tagInitialization(instance, InstanceType.SINGLE_NODE);
+		instance = instanceProvisioner.findInstanceById(client,instance.getId());//refresh instance
+		instanceChecker.setProperties(establishInstanceDefaultProperties(instance.getDnsName(), instanceChecker.getProperties()));
 		instanceChecker.checkServerResources(instance, configurer.isUseEmbeddedZookeeper());
 		LOGGER.info("*******Setting up your single XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
+		configurer.setProperties(establishInstanceDefaultProperties(instance.getDnsName(), configurer.getProperties()));
+
 		return deploySingleServer(
-				configurer.createSingleNodeScript(instance.getDnsName(), hadoopVersion),
+				configurer.createSingleNodeScript(instance.getIpAddress(), hadoopVersion),
 				instance, InstanceType.SINGLE_NODE);
 	}
 
 	/**
 	 * Deploys a Admin instance of XD.
-	 * @param script - The script built by JClouds Script Builder that initializes the Admin Server
 	 * @return The instance information for a successfully created Admin Server
 	 */
-	private Deployment deployAdminServer(String script) {
+	private Deployment deployAdminServer() {
 		LOGGER.info("\n\n" + HIGHLIGHT);
 		LOGGER.info("*Deploying Admin Node");
 		LOGGER.info(HIGHLIGHT);
@@ -227,12 +214,16 @@ public class AWSDeployer implements Deployer {
 					+ " did not get into a running state before timeout of " + instanceProvisionWaitTime);
 		}
 		tagInitialization(instance, InstanceType.ADMIN);
+		instance = instanceProvisioner.findInstanceById(client,instance.getId());
+		instanceChecker.setProperties(establishInstanceDefaultProperties(instance.getDnsName(), instanceChecker.getProperties()));
+
 		instanceChecker.checkServerResources(instance, false);
 		LOGGER.info("*******Setting up your Administrator XD instance.*******");
 		instance = AWSInstanceProvisioner.findInstanceById(client,
 				instance.getId());
+		configurer.setProperties(establishInstanceDefaultProperties(instance.getDnsName(),configurer.getProperties()));
 		return deploySingleServer(configurer.createAdminNodeScript(
-				instance.getDnsName()), instance,
+				instance.getIpAddress()), instance,
 				InstanceType.ADMIN);
 	}
 
@@ -356,7 +347,7 @@ public class AWSDeployer implements Deployer {
 
 	/**
 	 * Deploys the container instances for XD.
-	 * @param script - The admin server this container will be associated.
+	 * @param hostName - The admin server this container will be associated.
 	 * @return A list of instances and whether they were successfully created or not.
 	 */
 	private List<Deployment> deployContainerServers(final String hostName) {
@@ -559,4 +550,27 @@ public class AWSDeployer implements Deployer {
 		}
 	}
 
+	/**
+	 * Establishes defaults for properties where the default value can't be set until the admin server instance
+	 * has been instantiated.  If the entry is not in the properties then the entry will be set.
+	 * @param host the admin host containing the resources.
+	 * @param properties the properties container to be evaluated
+	 * @return a properties instance with updated defaults.
+	 */
+	private Properties establishInstanceDefaultProperties(String host, Properties properties) {
+		final String redisAddressName = "spring.redis.address";
+		final String rabbitAddressName = "spring.rabbitmq.addresses";
+		final String zooKeeperAddressName = "spring.zookeeper.addresses";
+		if (!properties.containsKey(redisAddressName)) {
+			properties.setProperty(redisAddressName, host + ":6379");
+		}
+		if (!properties.containsKey(rabbitAddressName)) {
+			properties.setProperty(rabbitAddressName, host + ":5672");
+		}
+		if (!properties.containsKey(zooKeeperAddressName)) {
+			properties.setProperty(zooKeeperAddressName, host + ":2181");
+		}
+
+		return properties;
+	}
 }

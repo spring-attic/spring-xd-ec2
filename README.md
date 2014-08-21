@@ -67,6 +67,18 @@ spring.datasource.password=mypassword
 spring.datasource.driverClassName=com.mysql.jdbc.Driver
 ```
 
+Using static resources (zookeeper, rabbit or redis)
+----------
+The default behavior of spring-xd-ec2 is to start zookeeper, redis and rabbit on the admin node and have all the containers references these instances.  In cases where the containers and admin need to reference existing resources, the existing resources can be enumerated in the xd-ec2.properties file.  
+For example:
+```
+#XD Properties
+spring.redis.address=ec2-1-2-3-4.compute-1.amazonaws.com:6379
+spring.rabbitmq.addresses=ec2-6-7-8-9.compute-1.amazonaws.com:5672
+spring.zookeeper.addresses=ec2-10-11-12-13.compute-1.amazonaws.com:2181,ec2-14-15-16-17.compute-1.amazonaws.com:2181,ec2-18-19-20-21.compute-1.amazonaws.com:2181
+```
+You may use the properties individually and for the ones  not present, then the default behavior enumerated above will be used.
+
 Container Specific Properties
 ----------
 XD Supports XD.CONTAINER.GROUPS such that you can assign modules to a specific container group.  To support this feature XD-EC2 allows the user to create container specific property settings.  This is done by prefixing any property value with XD<digit>. .  The digit represents the container you want the property to be associated.  For example:  If you wanted Container 0 to belong to group0 and Container 1 to belong to groupA you would add the following to your XD-EC2.properties file.
@@ -82,9 +94,4 @@ Using
 1) SSH into the boxes using the Public DNS names that were listed at the end of the install process, e.g.
 
 $ ssh -i xd-key-pair.pem ubuntu@ec2-54-205-186-126.compute-1.amazonaws.com
-
-
-
-
-
 

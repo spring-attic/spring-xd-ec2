@@ -16,27 +16,21 @@
 
 package org.springframework.xd.ec2.cloud;
 
-import static org.jclouds.scriptbuilder.domain.Statements.exec;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
-
 import org.jclouds.scriptbuilder.ScriptBuilder;
 import org.jclouds.scriptbuilder.domain.OsFamily;
 import org.jclouds.scriptbuilder.domain.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.xd.cloud.InstanceConfigurer;
+
+import java.io.File;
+import java.util.*;
+import java.util.Map.Entry;
+
+import static org.jclouds.scriptbuilder.domain.Statements.exec;
 
 /**
  * Creates the scripts that will be used to install, bootstrap and configure XD
@@ -62,11 +56,18 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	private static final String REDIS_HOST = "spring_redis_host";
 
+	private static final String REDIS_PORT = "spring_redis_port";
+
 	private static final String ZK_CLIENT_CONNECT = "ZK_CLIENT_CONNECT";
 
 	private static final String USE_EMBEDDED_ZOOKEEPER = "use_embedded_zookeeper";
 
 	private static final String XD_THIRD_PARTY_JAR_URLS = "xd-third-party-jar-urls";
+
+	private static final String REDIS_EC2_ADDRESS = "spring.redis.address";
+	private static final String RABBIT_EC2_ADDRESSES = "spring.rabbitmq.addresses";
+	private static final String ZOOKEEPER_EC2_ADDRESSES = "spring.zookeeper.addresses";
+
 
 	static final Logger LOGGER = LoggerFactory
 			.getLogger(AWSInstanceConfigurer.class);
@@ -365,14 +366,20 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	}
 
 	private String getBaseConfigurationCommand(String hostName) {
+		String redisAddress = properties.getProperty(REDIS_EC2_ADDRESS);
+		String rabbitAddresses = properties.getProperty(RABBIT_EC2_ADDRESSES);
+		String zookeeperAddresses = properties.getProperty(ZOOKEEPER_EC2_ADDRESSES);
+
 		String configCommand = "java -cp /home/ubuntu/deploy.jar org.springframework.xd.ec2.environment.ConfigureSystem  ";
 		configCommand = configCommand + " --XD_HOME=" + getInstalledDirectory()
 				+ "/xd";
-		configCommand = configCommand + " --" + RABBIT_ADDRESSES + "=" + hostName + ":5672";
-		configCommand = configCommand + " --" + REDIS_HOST + "=" + hostName;
+		configCommand = configCommand + " --" + RABBIT_ADDRESSES + "=" + rabbitAddresses;
+		String redisHostPort[] = StringUtils.delimitedListToStringArray(redisAddress,":");
+		configCommand = configCommand + " --" + REDIS_HOST + "=" + redisHostPort[0];
+		configCommand = configCommand + " --" + REDIS_PORT + "=" + redisHostPort[1];
+
 		if (!useEmbeddedZookeeper) {
-			configCommand = configCommand + " --" + ZK_CLIENT_CONNECT + "="
-					+ hostName + ":2181";
+			configCommand = configCommand + " --" + ZK_CLIENT_CONNECT + "=" + zookeeperAddresses;
 		}
 		return configCommand;
 	}
@@ -427,12 +434,15 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	private List<Statement> getBaseEnvironmentList(String hostName) {
 		List<Statement> result = new ArrayList<Statement>();
+
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
-		result.add(exec("export " + RABBIT_ADDRESSES + "=" + hostName + ":5672"));
-		result.add(exec("export " + REDIS_HOST + "=" + hostName));
+		result.add(exec("export " + RABBIT_ADDRESSES + "=" + properties.getProperty(RABBIT_EC2_ADDRESSES)));
+		String redisHostPort[] = StringUtils.delimitedListToStringArray(properties.getProperty(REDIS_EC2_ADDRESS),":");
+		result.add(exec("export " + REDIS_HOST + "=" + redisHostPort[0]));
+		result.add(exec("export " + REDIS_PORT + "=" + redisHostPort[1]));
+
 		if (!useEmbeddedZookeeper) {
-			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + hostName
-					+ ":2181"));
+			result.add(exec("export " + ZK_CLIENT_CONNECT + "=" + properties.getProperty(ZOOKEEPER_EC2_ADDRESSES)));
 		}
 		return result;
 	}
@@ -461,6 +471,15 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			statements.add(exec("wget -P " + getLibDirectory() + " " + urlIter.next()));
 		}
 		return statements;
-
 	}
+
+	public Properties getProperties() {
+		return properties;
+	}
+
+	public void setProperties(Properties properties) {
+		this.properties = properties;
+	}
+
+
 }

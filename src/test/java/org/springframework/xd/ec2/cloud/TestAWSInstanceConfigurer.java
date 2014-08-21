@@ -16,19 +16,18 @@
 
 package org.springframework.xd.ec2.cloud;
 
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.PropertiesFactoryBean;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import java.io.IOException;
+
+import static org.junit.Assert.assertTrue;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration
@@ -36,12 +35,6 @@ public class TestAWSInstanceConfigurer {
 
 	@Value("${xd-dist-url}")
 	private String xdDistUrl;
-
-	@Value("${spring.data.redis.port}")
-	private String redisPort;
-
-	@Value("${spring.rabbitmq.port}")
-	private String rabbitPort;
 
 	private static final String XD_HOME_VALUE = "export XD_HOME=\"/home/ubuntu/spring-xd-X.X.X.BUILD-SNAPSHOT\"";
 
@@ -53,9 +46,9 @@ public class TestAWSInstanceConfigurer {
 
 	private static final String UNZIP_COMMAND = "unzip /home/ubuntu/spring-xd-1.0.0.XXXX-20131024.235055-1.zip -d /home/ubuntu/";
 
-	private static final String REDIS_CONFIG = "--spring_data_redis_port=7878";
+	private static final String REDIS_CONFIG = "--spring_redis_address=host:7878";
 
-	private static final String RABBIT_CONFIG = "--spring_rabbitmq_port=9898";
+	private static final String RABBIT_CONFIG = "--spring_rabbitmq_addresses=host:5672";
 
 	@Autowired
 	PropertiesFactoryBean myProperties;

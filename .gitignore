@@ -7,3 +7,5 @@
 .classpath
 /config
 /logs
+.idea/
+spring-xd-ec2.iml

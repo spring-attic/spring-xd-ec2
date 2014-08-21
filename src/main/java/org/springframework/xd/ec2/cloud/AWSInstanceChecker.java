@@ -16,11 +16,8 @@
 
 package org.springframework.xd.ec2.cloud;
 
-import static org.jclouds.util.Predicates2.retry;
-
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-
+import com.google.common.base.Predicate;
+import com.google.common.net.HostAndPort;
 import org.jclouds.aws.ec2.AWSEC2Api;
 import org.jclouds.compute.ComputeService;
 import org.jclouds.ec2.domain.InstanceState;
@@ -29,17 +26,23 @@ import org.jclouds.ec2.predicates.InstanceStateRunning;
 import org.jclouds.predicates.SocketOpen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.xd.cloud.DeployTimeoutException;
 
-import com.google.common.base.Predicate;
-import com.google.common.net.HostAndPort;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+
+import static org.jclouds.util.Predicates2.retry;
 
 /**
  * Verifies services are available.  
  */
 public class AWSInstanceChecker {
+
+	private static final String REDIS_ADDRESS = "spring.redis.address";
+	private static final String RABBIT_ADDRESSES = "spring.rabbitmq.addresses";
+	private static final String ZOOKEEPER_ADDRESSES = "spring.zookeeper.addresses";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AWSDeployer.class);
 
@@ -47,11 +50,7 @@ public class AWSInstanceChecker {
 
 	private ComputeService computeService;
 
-	private int redisPort;
-
-	private int rabbitPort;
-
-	private int zookeeperPort;
+	private Properties properties;
 
 	public AWSInstanceChecker(Properties properties, AWSEC2Api client,
 			ComputeService computeService) {
@@ -60,9 +59,7 @@ public class AWSInstanceChecker {
 		Assert.notNull(computeService, "computeService can not be null");
 		this.client = client;
 		this.computeService = computeService;
-		redisPort = Integer.valueOf(properties.getProperty("spring.redis.port"));
-		rabbitPort = Integer.valueOf(properties.getProperty("spring.rabbitmq.port"));
-		zookeeperPort = Integer.valueOf(properties.getProperty("spring.zookeeper.port"));
+		this.properties = properties;
 
 	}
 
@@ -95,8 +92,7 @@ public class AWSInstanceChecker {
 	 * @param isEmbeddedZookeeper if false it checks that zookeeper is up and running, if true it does not check.
 	 * @return check
 	 */
-	public RunningInstance checkServerResources(RunningInstance instanceParam, boolean isEmbeddedZookeeper)
-	{
+	public RunningInstance checkServerResources(RunningInstance instanceParam, boolean isEmbeddedZookeeper) {
 		Assert.notNull(instanceParam, "instanceParam can not be null");
 		RunningInstance instance = checkAWSInstance(instanceParam);
 		LOGGER.info("*******Verifying Required XD Resources.*******");
@@ -105,26 +101,27 @@ public class AWSInstanceChecker {
 				.getInstance(SocketOpen.class);
 		Predicate<HostAndPort> socketTester = retry(socketOpen, 300, 1,
 				TimeUnit.SECONDS);
-		LOGGER.info(String.format("Awaiting Redis service to start"));
-		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
-				redisPort)))
+
+		LOGGER.info(String.format("Awaiting Redis service to start at " + properties.getProperty(REDIS_ADDRESS)));
+		if (!verifyResourceAddress(properties.getProperty(REDIS_ADDRESS))) {
 			throw new DeployTimeoutException("timeout waiting for Redis to start: "
-					+ instance.getIpAddress());
+					+ properties.getProperty(REDIS_ADDRESS));
+		}
 		LOGGER.info(String.format("Redis service started"));
 
-		LOGGER.info(String.format("Awaiting Rabbit service to start"));
-		if (!socketTester.apply(HostAndPort.fromParts(instance.getIpAddress(),
-				rabbitPort)))
+		LOGGER.info(String.format("Awaiting Rabbit service to start at " + properties.getProperty(RABBIT_ADDRESSES)));
+		if (!verifyResourceAddress(properties.getProperty(RABBIT_ADDRESSES))) {
 			throw new DeployTimeoutException("timeout waiting for Rabbit to start: "
-					+ instance.getIpAddress());
+					+ properties.getProperty(RABBIT_ADDRESSES));
+		}
 		LOGGER.info(String.format("Rabbit service started"));
+
 		if (!isEmbeddedZookeeper) {
-			LOGGER.info(String.format("Awaiting ZooKeeper service to start"));
-			if (!socketTester.apply(HostAndPort.fromParts(
-					instance.getIpAddress(), zookeeperPort)))
-				throw new DeployTimeoutException(
-						"timeout waiting for zookeeper to start: "
-								+ instance.getIpAddress());
+			LOGGER.info(String.format("Awaiting ZooKeeper service to start at " + properties.getProperty(ZOOKEEPER_ADDRESSES)));
+			if (!verifyResourceAddress(properties.getProperty(ZOOKEEPER_ADDRESSES))) {
+				throw new DeployTimeoutException("timeout waiting for zookeeper to start: "
+						+ properties.getProperty(ZOOKEEPER_ADDRESSES));
+			}
 			LOGGER.info(String.format("Zoo Keeper service started%n"));
 		}
 		LOGGER.info("*******EC2 Instance and required XD Resources have started.*******");
@@ -135,6 +132,24 @@ public class AWSInstanceChecker {
 		return instance;
 	}
 
+	private boolean verifyResourceAddress(String addresses){
+		SocketOpen socketOpen = computeService.getContext().utils().injector()
+				.getInstance(SocketOpen.class);
+		Predicate<HostAndPort> socketTester = retry(socketOpen, 180, 1,
+				TimeUnit.SECONDS);
+		boolean result = false;
+		String[] addressList = StringUtils.commaDelimitedListToStringArray(addresses);
+		for(String address:addressList){
+			String[] tokens = StringUtils.delimitedListToStringArray(address,":");
+			if (socketTester.apply(HostAndPort.fromParts(tokens[0],
+					Integer.valueOf(tokens[1])))){
+				result = true;
+				break;
+			}
+
+		}
+		return result;
+	}
 	/**
 	 * Verfies that the EC2 instance is running.  Also verfies ssh service is running
 	 * @param instanceParam The instance to be monitored.
@@ -175,7 +190,7 @@ public class AWSInstanceChecker {
 	 * 
 	 * @param instance
 	 *            The running instance you want to examine.
-	 * @param managment port 
+	 * @param managementPort
 	 *            the jmx port .
 	 * @return
 	 */
@@ -221,4 +236,13 @@ public class AWSInstanceChecker {
 		}
 		return result;
 	}
+
+	public Properties getProperties() {
+		return properties;
+	}
+
+	public void setProperties(Properties properties) {
+		this.properties = properties;
+	}
+
 }

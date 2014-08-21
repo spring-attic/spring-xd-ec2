@@ -16,29 +16,29 @@
 
 package org.springframework.xd.ec2;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.xd.cloud.Deployer;
 import org.springframework.xd.cloud.Deployment;
 import org.springframework.xd.cloud.InstanceSize;
 import org.springframework.xd.cloud.InstanceType;
 import org.springframework.xd.cloud.InvalidXDZipUrlException;
 import org.springframework.xd.ec2.cloud.AWSDeployer;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 /**
  * The Retrieves he user setting and kicks off the provisioning and deployment process.
@@ -49,9 +49,6 @@ import org.springframework.xd.ec2.cloud.AWSDeployer;
 @Component
 public class Ec2Installer {
 
-	/**
-	 * @param args
-	 */
 	private final static Logger LOGGER = LoggerFactory
 			.getLogger(Ec2Installer.class);
 
@@ -60,8 +57,6 @@ public class Ec2Installer {
 
 	@Autowired
 	private Banner banner;
-
-	private Deployer deployer;
 
 	public static final String[] REQUIRED_ENTRIES = { "cluster-name",
 		"aws-access-key", "aws-secret-key", "private-key-file",
@@ -74,6 +69,7 @@ public class Ec2Installer {
 	 */
 	public void install() {
 		try {
+			Deployer deployer;
 			banner.print("banner.txt");
 			final Properties properties = getProperties();
 			validateConfiguration(properties);
@@ -126,7 +122,9 @@ public class Ec2Installer {
 
 			File file = new File("ec2servers.csv");
 
-			file.createNewFile();
+			if(!file.createNewFile()){
+				throw new IllegalStateException("Unable to create ec2Servers.csv artifact");
+			}
 
 			FileWriter fw = new FileWriter(file.getAbsoluteFile());
 			BufferedWriter bw = new BufferedWriter(fw);
@@ -173,12 +171,11 @@ public class Ec2Installer {
 	 */
 	private Properties getProperties() {
 		Resource resource = new ClassPathResource("xd-ec2.properties");
-		Properties props = null;
+		Properties props;
 		try {
 			props = PropertiesLoaderUtils.loadProperties(resource);
-			Iterator<Object> iter = props.keySet().iterator();
-			while (iter.hasNext()) {
-				String key = (String) iter.next();
+			for (Object o : props.keySet()) {
+				String key = (String) o;
 				props.setProperty(key, getAWSProperty(props, key));
 			}
 
@@ -211,10 +208,10 @@ public class Ec2Installer {
 	private Properties validateConfiguration(Properties props) {
 		ArrayList<String> errorList = new ArrayList<String>();
 		String value;
-		for (int i = 0; i < REQUIRED_ENTRIES.length; i++) {
-			value = props.getProperty(REQUIRED_ENTRIES[i]);
+		for (String requiredEntry : REQUIRED_ENTRIES) {
+			value = props.getProperty(requiredEntry);
 			if (value == null || value.length() == 0) {
-				errorList.add(REQUIRED_ENTRIES[i]);
+				errorList.add(requiredEntry);
 			}
 		}
 		if (errorList.size() > 0) {
@@ -233,6 +230,7 @@ public class Ec2Installer {
 		if (Boolean.parseBoolean(props.getProperty("multi-node"))) {
 			Integer.getInteger(props.getProperty("number-nodes"));
 		}
+		validateStaticResourceProperties(props);
 		return props;
 	}
 
@@ -253,6 +251,52 @@ public class Ec2Installer {
 			verified = true;
 		}
 		return verified;
+	}
+
+	/**
+	 * Verifies that Redis, Rabbit or Zookeeper static resources are configured properly.  IF property is not present then no check is applied.
+	 *
+	 * @param properties The properties containing the xd-ec2 settings.
+	 */
+	private void validateStaticResourceProperties(Properties properties) {
+		final String redisAddressName = "spring.redis.address";
+		final String rabbitAddressName = "spring.rabbitmq.addresses";
+		final String zooKeeperAddressName = "spring.zookeeper.addresses";
+		try {
+			if (properties.contains(redisAddressName)) {
+				verifyAddresses(properties.getProperty(redisAddressName));
+			}
+		}
+		catch (IllegalArgumentException iae) {
+			throw new IllegalStateException(redisAddressName + " not properly setup", iae);
+		}
+		try {
+			if (properties.contains(rabbitAddressName)) {
+				verifyAddresses(properties.getProperty(rabbitAddressName));
+			}
+		}
+		catch (IllegalArgumentException iae) {
+			throw new IllegalStateException(rabbitAddressName + " not properly setup", iae);
+		}
+		try {
+			if (properties.contains(zooKeeperAddressName)) {
+				verifyAddresses(properties.getProperty(zooKeeperAddressName));
+			}
+		}
+		catch (IllegalArgumentException iae) {
+			throw new IllegalStateException(zooKeeperAddressName + " not properly setup", iae);
+		}
+
+	}
+	private boolean verifyAddresses(String addresses) {
+		Assert.hasText(addresses, "addresses cannot be empty nor null");
+		String[] addressList = StringUtils.commaDelimitedListToStringArray(addresses);
+		boolean result = true;
+		for (String address : addressList) {
+			String[] tokens = StringUtils.delimitedListToStringArray(address, ":");
+			Assert.isTrue(tokens.length == 2, "illegal number of elements in address");
+		}
+		return result;
 	}
 
 }
