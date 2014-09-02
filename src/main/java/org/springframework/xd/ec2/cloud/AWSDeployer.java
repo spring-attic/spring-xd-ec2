@@ -540,8 +540,17 @@ public class AWSDeployer implements Deployer {
 	 * @param properties the configuration properties for the deployment.
 	 */
 	private void validateURLs(Properties properties) {
+		String xdDistUrl= properties.getProperty("xd-dist-url");
+		String xdGetDist= properties.getProperty("spring-xd-get-dist", "true");
 		try {
-			configurer.checkURL(properties.getProperty("xd-dist-url"));
+			if(xdGetDist.equalsIgnoreCase("true")) {
+				configurer.checkURL(xdDistUrl);
+				LOGGER.info("Using the following host to obtain XD Distribution: "
+						+ xdDistUrl);
+			}
+			else{
+				LOGGER.info("Using Pre-Installed XD Distribution");
+			}
 		}
 		catch (HttpClientErrorException httpException) {
 			throw new InvalidXDZipUrlException(

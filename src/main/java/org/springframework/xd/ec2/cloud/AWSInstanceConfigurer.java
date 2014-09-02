@@ -212,8 +212,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 */
 	private List<Statement> deploySingleNodeXDStatement(String hostName, String hadoopVersion) {
 		List<Statement> result = initializeEnvironmentStatements(hostName);
-		LOGGER.info("Using the following host to obtain XD Distribution: "
-				+ xdDistUrl);
 		result = addGetResourceStatements(result);
 		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-singlenode " + getHadoopVersion(hadoopVersion) + " &"));
@@ -231,8 +229,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 */
 	private List<Statement> deployAdminNodeXDStatement(String hostName) {
 		List<Statement> result = initializeEnvironmentStatements(hostName);
-		LOGGER.info("Using the following host to obtain XD Distribution: "
-				+ xdDistUrl);
 		result = addGetResourceStatements(result);
 		result.add(exec(constructConfigurationCommand(hostName)));
 		result.add(exec(getBinDirectory() + "xd-admin &"));
@@ -254,8 +250,6 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 		List<Statement> result = initializeEnvironmentStatements(hostName, instanceIndex);
 		result.add(exec("export XD_HOME=" + getInstalledDirectory() + "/xd"));
-		LOGGER.info("Using the following host to obtain XD Distribution: "
-				+ xdDistUrl);
 		result = addGetResourceStatements(result);
 		result.add(exec(constructConfigurationCommand(hostName, instanceIndex)));
 		result.add(exec(getBinDirectory() + "xd-container " + getHadoopVersion(hadoopVersion) + " &"));
@@ -462,7 +456,10 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	List<Statement> addGetResourceStatements(List<Statement> statements) {
 		statements = new ArrayList<Statement>(statements);
-		statements.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
+		String xdGetDist= properties.getProperty("spring-xd-get-dist", "true");
+		if(xdGetDist.equalsIgnoreCase("true")) {
+			statements.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
+		}
 		statements.add(exec("unzip " + UBUNTU_HOME + getFileName() + " -d "
 				+ UBUNTU_HOME));
 		//Add jars to xd/lib
