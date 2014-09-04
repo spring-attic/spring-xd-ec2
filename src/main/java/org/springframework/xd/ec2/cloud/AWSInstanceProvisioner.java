@@ -16,21 +16,19 @@
 
 package org.springframework.xd.ec2.cloud;
 
-import static org.jclouds.ec2.options.RunInstancesOptions.Builder.asType;
-
-import java.util.Properties;
-import java.util.Set;
-
+import com.google.common.collect.Iterables;
 import org.jclouds.aws.ec2.AWSEC2Api;
 import org.jclouds.ec2.domain.InstanceType;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
-
 import org.springframework.util.Assert;
 import org.springframework.xd.cloud.InstanceProvisioner;
 import org.springframework.xd.cloud.InstanceSize;
 
-import com.google.common.collect.Iterables;
+import java.util.Properties;
+import java.util.Set;
+
+import static org.jclouds.ec2.options.RunInstancesOptions.Builder.asType;
 
 /**
  * Provisions all necessary AWS resources for XD.
@@ -51,6 +49,8 @@ public class AWSInstanceProvisioner implements InstanceProvisioner {
 
 	private String region;
 
+	private String zone;
+
 	private AWSEC2Api client;
 
 	public AWSInstanceProvisioner(AWSEC2Api client, Properties properties) {
@@ -62,13 +62,14 @@ public class AWSInstanceProvisioner implements InstanceProvisioner {
 		this.securityGroup = properties.getProperty("security-group");
 		this.publicKeyName = properties.getProperty("public-key-name");
 		this.region = properties.getProperty("region");
+		if(properties.containsKey("zone")) {
+			this.zone = properties.getProperty("zone");
+		}
 	}
 
 	/**
 	 * Creates an AWS Instance
 	 * 
-	 * @param client AWS Client that executes the commands necessary to create
-	 *            the instance.
 	 * @param script JClouds Builder script that bootstraps the instance.
 	 * @param numberOfInstances How many instances you need.
 	 * @return A list of created instances.
@@ -78,7 +79,7 @@ public class AWSInstanceProvisioner implements InstanceProvisioner {
 			int numberOfInstances) {
 		Assert.hasText(script, "script can not be empty nor null");
 		Reservation<? extends RunningInstance> reservation = client.getInstanceApi().get().
-				runInstancesInRegion(region, null,
+				runInstancesInRegion(region, zone,
 						ami, // XD Basic Image.
 						1, // minimum instances
 						numberOfInstances, // maximum instances
