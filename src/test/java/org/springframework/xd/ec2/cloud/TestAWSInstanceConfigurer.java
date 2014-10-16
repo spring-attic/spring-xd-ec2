@@ -50,6 +50,8 @@ public class TestAWSInstanceConfigurer {
 
 	private static final String RABBIT_CONFIG = "--spring_rabbitmq_addresses=host:5672";
 
+	private static final String JAVA_OPTS_VALUE = "--JAVA_OPTS=\"-XX:PermSize=256m\"";
+
 	@Autowired
 	PropertiesFactoryBean myProperties;
 
@@ -120,6 +122,9 @@ public class TestAWSInstanceConfigurer {
 		assertTrue("Was not able to find the XD_CONTAINER_GROUP=ALL5.", result.indexOf("ALL5") > -1);
 		result = configurer.createContainerNodeScript("MYHOST", "hadoop22", 0);
 		assertTrue("Was not able to find the XD_CONTAINER_GROUP=ALL5.", result.indexOf("GROUP0") > -1);
+		assertTrue("Was not able to find JAVA_OPTS",result.indexOf("JAVA_OPTS")>-1);
+
+
 
 	}
 

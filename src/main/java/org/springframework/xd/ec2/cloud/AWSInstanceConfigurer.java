@@ -355,6 +355,11 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 						+ key.replace(".", "_") + "="
 						+ entry.getValue());
 			}
+			if(key.equals("JVM_OPTS")){
+				configCommand = configCommand.concat(" --"
+						+ "JAVA_OPTS" + "="
+						+ entry.getValue());
+			}
 		}
 		return configCommand.concat(suffix);
 	}
@@ -368,7 +373,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 		configCommand = configCommand + " --XD_HOME=" + getInstalledDirectory()
 				+ "/xd";
 		configCommand = configCommand + " --" + RABBIT_ADDRESSES + "=" + rabbitAddresses;
-		String redisHostPort[] = StringUtils.delimitedListToStringArray(redisAddress,":");
+		String redisHostPort[] = StringUtils.delimitedListToStringArray(redisAddress, ":");
 		configCommand = configCommand + " --" + REDIS_HOST + "=" + redisHostPort[0];
 		configCommand = configCommand + " --" + REDIS_PORT + "=" + redisHostPort[1];
 
@@ -399,7 +404,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	 * should be added to a container's environment.  If null, container specific entries will not be searched.
 	 */
 	private List<Statement> initializeEnvironmentStatements(String hostName,
-			Integer containerIndex) {
+															Integer containerIndex) {
 		List<Statement> result = getBaseEnvironmentList(hostName);
 		Iterator<Entry<Object, Object>> iter = properties.entrySet().iterator();
 
@@ -412,14 +417,17 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 					|| key.startsWith("XD_") || key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
 				isValidKey = true;
-			}
-			else if (containerIndex != null
+			} else if (containerIndex != null
 					&& key.startsWith("XD" + containerIndex + ".")) {
 				key = key.substring(key.indexOf(".") + 1);
 				isValidKey = true;
 			}
 			if (isValidKey) {
 				result.add(exec("export " + key.replace(".", "_") + "="
+						+ entry.getValue()));
+			}
+			if (key.equals("JVM_OPTS")) {
+				result.add(exec("export " + "JAVA_OPTS" + "="
 						+ entry.getValue()));
 			}
 		}

@@ -61,15 +61,20 @@ public class ConfigureSystem {
 			return "/home/ubuntu/.bashrc";
 	}
 
-	private Properties getCommandLineProperties(String []args){
+	private Properties getCommandLineProperties(String[] args) {
 		Properties props = new Properties();
-		for(String arg:args){
-			if(!arg.startsWith("--")||arg.indexOf('=')<0){
+		for (String arg : args) {
+			if (!arg.startsWith("--") || arg.indexOf('=') < 0) {
 				continue;
 			}
 			arg = arg.substring(2);
-			StringTokenizer tokenizer = new StringTokenizer(arg,"=");
-			props.put(tokenizer.nextToken(),tokenizer.nextToken());
+			StringTokenizer tokenizer = new StringTokenizer(arg, "=");
+			String key = tokenizer.nextToken();
+			String value = tokenizer.nextToken();
+			while (tokenizer.hasMoreTokens()) {
+				value += "=" + tokenizer.nextToken();
+			}
+			props.put(key, value);
 		}
 		return props;
 	}
