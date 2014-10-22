@@ -6,6 +6,7 @@
 .springBeans
 .classpath
 /config
+/conf
 /logs
 .idea/
 spring-xd-ec2.iml
