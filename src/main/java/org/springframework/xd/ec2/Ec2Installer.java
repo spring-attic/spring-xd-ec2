@@ -27,7 +27,6 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.xd.cloud.Deployer;
 import org.springframework.xd.cloud.Deployment;
-import org.springframework.xd.cloud.InstanceSize;
 import org.springframework.xd.cloud.InstanceType;
 import org.springframework.xd.cloud.InvalidXDZipUrlException;
 import org.springframework.xd.ec2.cloud.AWSDeployer;
@@ -222,35 +221,11 @@ public class Ec2Installer {
 			}
 			throw new IllegalArgumentException(errorMessage);
 		}
-
-		if (!verifyMachineSize(props.getProperty("machine-size"))) {
-			throw new IllegalArgumentException(
-					"Invalid machine size specified.  Valid values are small, medium, large");
-		}
 		if (Boolean.parseBoolean(props.getProperty("multi-node"))) {
 			Integer.getInteger(props.getProperty("number-nodes"));
 		}
 		validateStaticResourceProperties(props);
 		return props;
-	}
-
-	/**
-	 * Verifies that the user has chose a valid VM size.
-	 * @param machineSize The size of the machine requested by the configuration.
-	 * @return True if valid  Else false.
-	 */
-	private boolean verifyMachineSize(String machineSize) {
-		boolean verified = false;
-		if (machineSize.equalsIgnoreCase(InstanceSize.SMALL.name())) {
-			verified = true;
-		}
-		else if (machineSize.equalsIgnoreCase(InstanceSize.MEDIUM.name())) {
-			verified = true;
-		}
-		else if (machineSize.equalsIgnoreCase(InstanceSize.LARGE.name())) {
-			verified = true;
-		}
-		return verified;
 	}
 
 	/**

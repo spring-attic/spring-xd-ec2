@@ -570,6 +570,9 @@ public class AWSDeployer implements Deployer {
 		final String redisAddressName = "spring.redis.address";
 		final String rabbitAddressName = "spring.rabbitmq.addresses";
 		final String zooKeeperAddressName = "spring.zookeeper.addresses";
+		final String kafkaBrokerAddressName = "xd.messagebus.kafka.brokers";
+		final String kafkaZKAddressName = "xd.messagebus.kafka.zkAddress";
+
 		if (!properties.containsKey(redisAddressName)) {
 			properties.setProperty(redisAddressName, host + ":6379");
 		}
@@ -579,7 +582,12 @@ public class AWSDeployer implements Deployer {
 		if (!properties.containsKey(zooKeeperAddressName)) {
 			properties.setProperty(zooKeeperAddressName, host + ":2181");
 		}
-
+		if (!properties.containsKey(kafkaBrokerAddressName)) {
+			properties.setProperty(kafkaBrokerAddressName, host + ":9092");
+		}
+		if (!properties.containsKey(kafkaZKAddressName)){
+			properties.setProperty(kafkaZKAddressName, host + ":2181");
+		}
 		return properties;
 	}
 }

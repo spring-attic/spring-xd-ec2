@@ -43,6 +43,9 @@ public class AWSInstanceChecker {
 	private static final String REDIS_ADDRESS = "spring.redis.address";
 	private static final String RABBIT_ADDRESSES = "spring.rabbitmq.addresses";
 	private static final String ZOOKEEPER_ADDRESSES = "spring.zookeeper.addresses";
+	private static final String KAFKA_BROKER_ADDRESSES = "xd.messagebus.kafka.brokers";
+	private static final String KAFKA_ZK_ADDRESSES = "xd.messagebus.kafka.zkAddress";
+
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AWSDeployer.class);
 
@@ -124,6 +127,21 @@ public class AWSInstanceChecker {
 			}
 			LOGGER.info(String.format("Zoo Keeper service started%n"));
 		}
+
+		LOGGER.info(String.format("Awaiting Kafka Zookeeper service to start at " + properties.getProperty(KAFKA_ZK_ADDRESSES)));
+		if (!verifyResourceAddress(properties.getProperty(KAFKA_ZK_ADDRESSES))) {
+			throw new DeployTimeoutException("timeout waiting for kafka Zookeeper to start: "
+					+ properties.getProperty(KAFKA_ZK_ADDRESSES));
+		}
+		LOGGER.info(String.format("Kafka ZK service started%n"));
+
+		LOGGER.info(String.format("Awaiting Kafka Broker service to start at " + properties.getProperty(KAFKA_BROKER_ADDRESSES)));
+		if (!verifyResourceAddress(properties.getProperty(KAFKA_BROKER_ADDRESSES))) {
+			throw new DeployTimeoutException("timeout waiting for kafka broker to start: "
+					+ properties.getProperty(KAFKA_BROKER_ADDRESSES));
+		}
+		LOGGER.info(String.format("Kafka Broker service started%n"));
+
 		LOGGER.info("*******EC2 Instance and required XD Resources have started.*******");
 
 		LOGGER.info(String.format("instance %s ready", instance.getId()));

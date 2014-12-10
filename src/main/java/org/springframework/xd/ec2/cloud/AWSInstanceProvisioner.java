@@ -18,12 +18,10 @@ package org.springframework.xd.ec2.cloud;
 
 import com.google.common.collect.Iterables;
 import org.jclouds.aws.ec2.AWSEC2Api;
-import org.jclouds.ec2.domain.InstanceType;
 import org.jclouds.ec2.domain.Reservation;
 import org.jclouds.ec2.domain.RunningInstance;
 import org.springframework.util.Assert;
 import org.springframework.xd.cloud.InstanceProvisioner;
-import org.springframework.xd.cloud.InstanceSize;
 
 import java.util.Properties;
 import java.util.Set;
@@ -83,7 +81,7 @@ public class AWSInstanceProvisioner implements InstanceProvisioner {
 						ami, // XD Basic Image.
 						1, // minimum instances
 						numberOfInstances, // maximum instances
-						asType(getInstanceType()).withKeyName(publicKeyName)
+						asType(machineSize).withKeyName(publicKeyName)
 								.withSecurityGroup(securityGroup)
 								.withUserData(script.getBytes()));
 		return reservation;
@@ -104,24 +102,6 @@ public class AWSInstanceProvisioner implements InstanceProvisioner {
 						instanceId); // last parameter (ids) narrows the
 		// since we refined by instanceId there should only be one instance
 		return Iterables.getOnlyElement(Iterables.getOnlyElement(reservations));
-	}
-
-	private String getInstanceType() {
-		String type = null;
-		if (machineSize.equalsIgnoreCase(InstanceSize.SMALL.name())) {
-			type = InstanceType.M1_SMALL;
-		}
-		else if (machineSize.equalsIgnoreCase(InstanceSize.MEDIUM.name())) {
-			type = InstanceType.M1_MEDIUM;
-		}
-		else if (machineSize.equalsIgnoreCase(InstanceSize.LARGE.name())) {
-			type = InstanceType.M1_LARGE;
-		}
-		else if (machineSize.equalsIgnoreCase(InstanceSize.XLARGE.name())) {
-			type = InstanceType.M1_XLARGE;
-		}
-
-		return type;
 	}
 
 }

@@ -275,10 +275,11 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 	private List<Statement> startXDResourceStatement() {
 		ArrayList<Statement> result = new ArrayList<Statement>();
 		result.add(exec("/etc/init.d/redis-server start"));
-		result.add(exec("/etc/init.d/rabbitmq-server start"));
+		result.add(exec("/home/ubuntu/startRabbitmq.sh "));
 		if (!useEmbeddedZookeeper) {
 			result.add(exec("/home/ubuntu/startZooKeeper.sh"));
 		}
+		result.add(exec("/home/ubuntu/startKafka.sh"));
 		return result;
 	}
 
@@ -341,7 +342,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 			if (key.startsWith("spring.") || key.startsWith("brokerURL")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_") || key.startsWith("server.")
+					|| key.startsWith("XD_") || key.startsWith("xd.")
+					|| key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
 				isValidKey = true;
 			}
@@ -414,7 +416,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 			String key = (String) entry.getKey();
 			if (key.startsWith("spring.") || key.startsWith("brokerURL")
 					|| key.startsWith("mqtt.") || key.startsWith("endpoints.")
-					|| key.startsWith("XD_") || key.startsWith("server.")
+					|| key.startsWith("XD_") || key.startsWith("xd.")
+					|| key.startsWith("server.")
 					|| key.startsWith("management.") || key.startsWith("PORT")) {
 				isValidKey = true;
 			} else if (containerIndex != null
