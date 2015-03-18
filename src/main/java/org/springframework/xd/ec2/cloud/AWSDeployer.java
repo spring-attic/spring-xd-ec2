@@ -117,19 +117,19 @@ public class AWSDeployer implements Deployer {
 		Assert.notNull(properties, "properties can not be null");
 		Iterable<Module> modules = ImmutableSet
 				.<Module> of(new SshjSshClientModule());
-		clusterName = properties.getProperty("cluster-name");
-		privateKeyFile = properties.getProperty("private-key-file");
-		multiNode = properties.getProperty("multi-node");
+		clusterName = properties.getProperty("cluster.name");
+		privateKeyFile = properties.getProperty("private.key.file");
+		multiNode = properties.getProperty("multi.node");
 		description = properties.getProperty("description");
-		userName = properties.getProperty("user-name");
+		userName = properties.getProperty("user.name");
 		region = properties.getProperty("region");
-		numberOfInstances = properties.getProperty("number-nodes");
+		numberOfInstances = properties.getProperty("number.nodes");
 		hadoopVersion = properties.getProperty("XD_HADOOP_DISTRO");
 		managementPort = Integer.parseInt(properties.getProperty("management.port"));
-		instanceProvisionWaitTime = Long.valueOf(properties.getProperty("instance-provision-wait-time"));
+		instanceProvisionWaitTime = Long.valueOf(properties.getProperty("instance.provision.wait.time"));
 
-		String awsAccessKey = properties.getProperty("aws-access-key");
-		String awsSecretKey = properties.getProperty("aws-secret-key");
+		String awsAccessKey = properties.getProperty("aws.access.key");
+		String awsSecretKey = properties.getProperty("aws.secret.key");
 		ComputeServiceContext context = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)
 				.modules(modules).overrides(getTimeoutPolicy())
@@ -540,8 +540,8 @@ public class AWSDeployer implements Deployer {
 	 * @param properties the configuration properties for the deployment.
 	 */
 	private void validateURLs(Properties properties) {
-		String xdDistUrl= properties.getProperty("xd-dist-url");
-		String xdGetDist= properties.getProperty("spring-xd-get-dist", "true");
+		String xdDistUrl= properties.getProperty("xd.dist.url");
+		String xdGetDist= properties.getProperty("spring.xd.get.dist", "true");
 		try {
 			if(xdGetDist.equalsIgnoreCase("true")) {
 				configurer.checkURL(xdDistUrl);

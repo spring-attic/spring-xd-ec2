@@ -37,6 +37,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -57,10 +58,10 @@ public class Ec2Installer {
 	@Autowired
 	private Banner banner;
 
-	public static final String[] REQUIRED_ENTRIES = { "cluster-name",
-		"aws-access-key", "aws-secret-key", "private-key-file",
-		"user-name", "region", "machine-size", "security-group",
-		"public-key-name", "ami", "multi-node" };
+	public static final String[] REQUIRED_ENTRIES = { "cluster.name",
+		"aws.access.key", "aws.secret.key", "private.key.file",
+		"user.name", "region", "machine.size", "security.group",
+		"public.key.name", "ami", "multi.node" };
 
 	/**
 	 * Displays the banner verifies that the configuration is valid and kicks off the deployment.
@@ -89,7 +90,7 @@ public class Ec2Installer {
 			LOGGER.info(HIGHLIGHT);
 			LOGGER.error("An IllegalArgumentException has been thrown with the following message: \n"
 					+ iae.getMessage());
-			LOGGER.error("\nMake sure you updated the config/xd-ec2.properties");
+			LOGGER.error("\nMake sure you updated the config/xd.ec2.properties");
 			LOGGER.info(HIGHLIGHT);
 			LOGGER.info(iae.getMessage(), iae);
 		}
@@ -188,10 +189,12 @@ public class Ec2Installer {
 	}
 
 	private String getAWSProperty(Properties props, String propKey) {
-		Properties systemProperties = System.getProperties();
-
-		if (systemProperties.containsKey(propKey) && !systemProperties.getProperty(propKey).equals("")) {
-			return systemProperties.getProperty(propKey);
+		Map<String,String> systemProperties = System.getenv();
+		String systemPropKey = propKey.replace('.','_');
+		if (systemProperties.containsKey(systemPropKey) && (
+				!systemProperties.get(systemPropKey).equals("") ||
+				systemProperties.get(systemPropKey) != null)) {
+			return systemProperties.get(systemPropKey);
 		}
 		if (props.containsKey(propKey) && !props.getProperty(propKey).equals("")) {
 			return props.getProperty(propKey);
@@ -221,8 +224,8 @@ public class Ec2Installer {
 			}
 			throw new IllegalArgumentException(errorMessage);
 		}
-		if (Boolean.parseBoolean(props.getProperty("multi-node"))) {
-			Integer.getInteger(props.getProperty("number-nodes"));
+		if (Boolean.parseBoolean(props.getProperty("multi.node"))) {
+			Integer.getInteger(props.getProperty("number.nodes"));
 		}
 		validateStaticResourceProperties(props);
 		return props;

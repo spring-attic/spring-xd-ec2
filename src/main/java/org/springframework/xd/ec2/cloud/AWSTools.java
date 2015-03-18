@@ -53,8 +53,8 @@ public class AWSTools {
 
 	public AWSTools(Properties properties) {
 		Assert.notNull(properties, "properties can not be null");
-		awsAccessKey = properties.getProperty("aws-access-key");
-		awsSecretKey = properties.getProperty("aws-secret-key");
+		awsAccessKey = properties.getProperty("aws.access.key");
+		awsSecretKey = properties.getProperty("aws.secret.key");
 		region = properties.getProperty("region");
 		client = ContextBuilder.newBuilder("aws-ec2")
 				.credentials(awsAccessKey, awsSecretKey)

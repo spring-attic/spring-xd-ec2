@@ -56,9 +56,9 @@ public class AWSInstanceProvisioner implements InstanceProvisioner {
 		Assert.notNull(properties, "properties can not be null");
 		this.client = client;
 		this.ami = properties.getProperty("ami");
-		this.machineSize = properties.getProperty("machine-size");
-		this.securityGroup = properties.getProperty("security-group");
-		this.publicKeyName = properties.getProperty("public-key-name");
+		this.machineSize = properties.getProperty("machine.size");
+		this.securityGroup = properties.getProperty("security.group");
+		this.publicKeyName = properties.getProperty("public.key.name");
 		this.region = properties.getProperty("region");
 		if(properties.containsKey("zone")) {
 			this.zone = properties.getProperty("zone");

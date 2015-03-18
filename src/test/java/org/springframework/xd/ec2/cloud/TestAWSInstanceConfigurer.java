@@ -33,7 +33,7 @@ import static org.junit.Assert.assertTrue;
 @ContextConfiguration
 public class TestAWSInstanceConfigurer {
 
-	@Value("${xd-dist-url}")
+	@Value("${xd.dist.url}")
 	private String xdDistUrl;
 
 	private static final String XD_HOME_VALUE = "export XD_HOME=\"/home/ubuntu/spring-xd-X.X.X.BUILD-SNAPSHOT\"";
@@ -42,7 +42,7 @@ public class TestAWSInstanceConfigurer {
 
 	private static final String REDIS_INIT_VALUE = "/etc/init.d/redis-server start";
 
-	private static final String RABBIT_INIT_VALUE = "/etc/init.d/rabbitmq-server start";
+	private static final String RABBIT_INIT_VALUE = "/home/ubuntu/startRabbitmq.sh ";
 
 	private static final String UNZIP_COMMAND = "unzip /home/ubuntu/spring-xd-1.0.0.XXXX-20131024.235055-1.zip -d /home/ubuntu/";
 

@@ -62,7 +62,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	private static final String USE_EMBEDDED_ZOOKEEPER = "use_embedded_zookeeper";
 
-	private static final String XD_THIRD_PARTY_JAR_URLS = "xd-third-party-jar-urls";
+	private static final String XD_THIRD_PARTY_JAR_URLS = "xd.third.party.jar.urls";
 
 	private static final String REDIS_EC2_ADDRESS = "spring.redis.address";
 	private static final String RABBIT_EC2_ADDRESSES = "spring.rabbitmq.addresses";
@@ -76,8 +76,8 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	public AWSInstanceConfigurer(Properties properties) {
 		Assert.notNull(properties, "properties can not be null");
-		xdDistUrl = properties.getProperty("xd-dist-url");
-		xdRelease = properties.getProperty("xd-release");
+		xdDistUrl = properties.getProperty("xd.dist.url");
+		xdRelease = properties.getProperty("xd.release");
 		xdThirdPartyJars = getThirdPartyUrls(properties);
 		if (properties.containsKey(USE_EMBEDDED_ZOOKEEPER)) {
 			useEmbeddedZookeeper = Boolean.parseBoolean(properties
@@ -467,7 +467,7 @@ public class AWSInstanceConfigurer implements InstanceConfigurer {
 
 	List<Statement> addGetResourceStatements(List<Statement> statements) {
 		statements = new ArrayList<Statement>(statements);
-		String xdGetDist= properties.getProperty("spring-xd-get-dist", "true");
+		String xdGetDist= properties.getProperty("spring.xd.get.dist", "true");
 		if(xdGetDist.equalsIgnoreCase("true")) {
 			statements.add(exec("wget -P " + UBUNTU_HOME + " " + xdDistUrl));
 		}
