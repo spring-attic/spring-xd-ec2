@@ -24,8 +24,8 @@ Installing
 	* set the user-name property to your name
 	* set the description property, to define the purpose of this cluster.
 	* set the xd-dist-url to be a specific .zip located in the one of the Spring repositories
-	  * http://repo.spring.io/simple/libs-snapshot-local/org/springframework/xd/spring-xd/1.0.0.BUILD-SNAPSHOT/
-	  * http://repo.spring.io/simple/libs-milestone-local/org/springframework/xd/spring-xd
+	  * https://repo.spring.io/simple/libs-snapshot-local/org/springframework/xd/spring-xd/1.0.0.BUILD-SNAPSHOT/
+	  * https://repo.spring.io/simple/libs-milestone-local/org/springframework/xd/spring-xd
 	* To run multiple nodes, set multi-node=true and set the number-nodes key to the number of nodes you want to run.
         * Optionally set machine-size,region
 	* Save 
