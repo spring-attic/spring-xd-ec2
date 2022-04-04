@@ -1,3 +1,5 @@
+# spring-xd-ec2 is no longer actively maintained by VMware, Inc.
+
 spring-xd-ec2
 =============
 This project simply allows you to deploy an XD cluster to ec2.  
