@@ -12,8 +12,8 @@
 	
 	buildscript {
 		repositories {
-			maven { url 'http://repo.spring.io/plugins-snapshot' }
-			maven { url 'http://repo.spring.io/plugins-release' }
+			maven { url 'https://repo.spring.io/plugins-snapshot' }
+			maven { url 'https://repo.spring.io/plugins-release' }
 		}
 		dependencies {
 			classpath("org.springframework.build.gradle:propdeps-plugin:0.0.3")
@@ -23,7 +23,7 @@
 	
 	repositories {
 	    mavenCentral()
-	    maven { url "http://repo.springsource.org/plugins-snapshot" }
+	    maven { url "https://repo.springsource.org/plugins-snapshot" }
 	}
 	
 	task setupProject {
@@ -62,7 +62,7 @@
 	    linkScmConnection    = 'https://github.com/spring-projects/spring-xd-ec2.git'
 	    linkScmDevConnection = 'git@github.com:spring-projects/spring-xd-ec2.git'
 		javadocLinks = [
-			"http://static.springsource.org/spring-shell/docs/current/api/"
+			"https://docs.spring.io/spring-shell/docs/current/api/"
 		] as String[]
 	
 		}
